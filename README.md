@@ -5,19 +5,72 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)]()
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)]()
 
-> A domain-agnostic, uncertainty-aware multi-agent AI decision framework.
+> A domain-agnostic, uncertainty-aware multi-agent AI research framework.
 
-COGNIX is a framework designed to tackle the most critical problem in Multi-Agent AI systems: **Trust under Distributional Shift**. When multiple AI agents (sensors, models, or LLMs) disagree, COGNIX uses mathematical Uncertainty Quantification (Epistemic vs. Aleatoric) to dynamically down-weight degraded agents and fuse a safe, calibrated decision.
+COGNIX is a framework designed to evaluate decision-making in Multi-Agent AI systems under conditions of distributional shift and sensor degradation. It provides a modular architecture for quantifying uncertainty (Epistemic vs. Aleatoric), fusing multi-agent beliefs, and generating calibrated, risk-aware decisions.
 
-## 🌟 Key Features
+## 🏗️ 1. Framework Architecture
 
-- **Domain Agnostic**: Built for Autonomous Vehicles, Medical Diagnostics, Robotics, and Finance. If it has logits, COGNIX can fuse it.
-- **Epistemic-Weighted Fusion**: Decouples model uncertainty from data uncertainty using Monte Carlo Dropout and Deep Ensembles.
-- **Dynamic Escalation**: Automatically triggers `REQUEST_INFORMATION` or `ESCALATE` when total uncertainty crosses safety thresholds.
-- **V2V / Network Graph Ready**: Built-in support for Inter-Agent Graph Refinement (querying neighboring nodes when local sensors fail).
-- **Real-Time Dashboard**: Ships with a FastAPI + WebSocket dashboard for streaming live Expected Calibration Error (ECE) and Shapley Attribution.
+COGNIX is not a monolithic script, but a decoupled, dependency-injected framework built around strict API contracts. The core `DecisionEngine` coordinates the pipeline without depending on concrete algorithmic implementations.
 
-## 🚀 Quick Start
+The framework is divided into pluggable interfaces:
+- **`AgentInterface`**: Standardizes agent predictions and uncertainty estimations (`PredictionResult` and `UncertaintyResult`).
+- **`GraphRefinement`**: Handles inter-agent communication and attention routing (e.g., `StandardGAT`, `EpistemicGAT`, `NoGraph`).
+- **`BeliefFuser`**: Implements belief fusion strategies (e.g., `EpistemicWeightedFusion`, `AverageFusion`).
+- **`Calibrator`**: Enforces post-hoc calibration via Inductive Conformal Prediction.
+- **`AttributionMethod`**: Explains decision contributions (e.g., `EpistemicShapley`).
+- **`RiskStrategy`**: Maps calibrated uncertainties to actionable escalation levels.
+- **`TransportInterface`**: Minimal abstraction for distributed multi-agent deployment.
+
+## 🔬 2. Research Mechanism
+
+The central research mechanism evaluated by COGNIX flows as follows:
+
+```text
+    epistemic uncertainty
+            ↓
+    epistemic prior
+            ↓
+    GAT attention
+            ↓
+    collective multi-agent belief
+            ↓
+    conformal calibration
+            ↓
+    risk-aware decision
+            ↓
+    attribution / escalation
+```
+
+By explicitly isolating **epistemic uncertainty** (model ignorance or out-of-distribution shift), COGNIX provides a mechanism to reduce the prior influence of degraded agents before the network graph routes attention, potentially improving the reliability of the fused belief.
+
+## 📊 3. Experimental Evidence
+
+COGNIX is evaluated under a rigorous benchmarking infrastructure (Phase B). In the tested synthetic conditions:
+
+- **Epistemic vs Standard Attention**: Ablation studies provide evidence that injecting an epistemic prior materially changes the attention redistribution of the GAT relative to a standard learned attention mechanism.
+- **Out-Of-Distribution (OOD) Shift**: Observed in the tested conditions, epistemic-weighted fusion reduced the Expected Calibration Error (ECE) compared to uniform weighting when targeted agents were subjected to severe covariate shift.
+- **Fail-Loud Research Integrity**: The pipeline strictly enforces a fail-loud behavior in research mode (e.g., rejecting fallback values when uncertainty decomposition fails), guaranteeing mathematically sound provenance for all reported metrics.
+
+*Note: The magnitude of these effects depends heavily on the training quality of the agents and the severity of the distributional shift.*
+
+## 🎯 4. Research Targets
+
+The ongoing development of COGNIX targets the following scientific objectives:
+- Demonstrating behavioral substitutability across multiple non-automotive domains (e.g., tabular classification, distributed sensor networks).
+- Expanding the conformal calibration pipeline to map empirical coverage under severe, non-exchangeable distribution shifts.
+- Benchmarking the latency and exact vs. approximate runtime of Epistemic Shapley attribution as the number of agents $N$ scales.
+- Evaluating resilience against conflicting agents and communication dropouts via the distributed `TransportInterface`.
+
+## ⚠️ 5. Limitations
+
+COGNIX is an early-stage research framework. Users must be aware of the following:
+- **No Physical Safety Guarantees**: COGNIX does not guarantee safety. Conformal prediction provides empirical coverage *only* under strict calibration and exchangeability assumptions, which do not hold universally under arbitrary OOD shift.
+- **No Superiority Claims**: COGNIX does not universally outperform baselines. Its mechanisms are highly dependent on the quality of the underlying MC-Dropout or Deep Ensemble uncertainty estimations.
+- **Latency**: COGNIX makes no claims of "real-time" performance. Online latency for MC-Dropout, GAT inference, and exact Shapley enumeration must be explicitly measured for your specific hardware and batch size constraints.
+- **Approximate Mathematics**: Uncertainty decomposition relies on approximations (e.g., Bernoulli predictive-variance decomposition) that may degrade under certain model architectures.
+
+## 🚀 6. Example Usage
 
 ### Installation
 
@@ -30,51 +83,52 @@ cd Cognix
 pip install -e .
 ```
 
-### Basic Usage
+### Dependency Injection Pipeline
 
 ```python
-from cognix import DecisionEngine
+from cognix.engine.decision_engine import DecisionEngine
 from cognix.config.schema import CognixConfig
+from cognix.graph.epistemic_gat import EpistemicGAT
+from cognix.belief.fusion import EpistemicWeightedFusion
+from cognix.calibration.conformal import ConformalPredictor
 
-# Initialize the engine
+# Initialize explicit strategies
 config = CognixConfig()
-engine = DecisionEngine(config=config, belief="epistemic_weighted")
+gat = EpistemicGAT(input_dim=3, hidden_dim=8, output_dim=1)
+fuser = EpistemicWeightedFusion()
+calibrator = ConformalPredictor()
 
-# Agents can be PyTorch models, LLMs, or any predictive function
+# Inject into the DecisionEngine
+engine = DecisionEngine(
+    config=config,
+    belief=fuser,
+    graph=gat,
+    calibrator=calibrator,
+    mode="research" # Fails loud on mathematically invalid states
+)
+
+# Agents must implement the AgentInterface
 agents = [radar_agent, camera_agent, lidar_agent]
 
-# The engine handles Uncertainty Quantification and Fusion internally
-result = engine.decide(agents, current_state_data)
+# Evaluate the pipeline
+result = engine.decide(agents, input_data)
 
-if result.decision == "ACT":
-    print(f"Proceeding with confidence: {result.confidence}")
-elif result.decision == "ESCALATE":
-    print("Emergency handover triggered due to high Epistemic Uncertainty.")
+print(f"Fused Prediction: {result.confidence}")
+print(f"Total Uncertainty: {result.total_uncertainty}")
 ```
 
-## 📊 The Dashboard
+### Running Automated Benchmarks
 
-COGNIX comes with a built-in research dashboard to visualize your agent swarms in real-time.
+COGNIX supports automated, multi-seed ablation benchmarking:
 
 ```bash
-# Run a synthetic experiment
-python examples/rq_synthetic_001.py
-
-# Launch the dashboard
-python dashboard/app.py
+python -m cognix.evaluation.run \
+    --config configs/benchmark/gat_ablation.yaml \
+    --output-dir results/gat_ablation/
 ```
-Navigate to `http://localhost:8000` to view the live telemetry.
-
-## 🔬 Scientific Validation
-
-COGNIX is rigorously tested against Out-Of-Distribution (OOD) scenarios. In our benchmark synthetic test (`RQ_SYNTHETIC_001`), Epistemic-Weighted Fusion reduced Expected Calibration Error (ECE) from **16.12%** (Uniform Fusion) down to **4.36%** when targeted agents were subjected to severe covariate shift.
-
-See the [Research Documentation](docs/research/RQ_SYNTHETIC_001_REPORT.md) for full statistical analyses.
 
 ## 🤝 Contributing
-
 We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md) for details on how to get started.
 
 ## 📄 License
-
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
