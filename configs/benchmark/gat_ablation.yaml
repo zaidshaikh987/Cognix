@@ -1,0 +1,12 @@
+experiment_id: "gat_ablation"
+scenario_name: "OOD_SHIFT"
+seeds: [42, 101, 202, 303, 404, 505, 606, 707, 808, 909, 1010, 1111, 1212, 1313, 1414, 1515, 1616, 1717, 1818, 1919]
+num_samples: 200
+num_agents: 4
+dataset: "synthetic"
+noise_level: 3.0
+ood_severity: 10.0
+graph_types: ["NoGraph", "StandardGAT", "EpistemicGAT"]
+fusion_type: "EpistemicWeighted"
+calibration_type: "Conformal"
+missing_agents: []

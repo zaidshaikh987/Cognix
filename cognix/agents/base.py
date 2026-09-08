@@ -1,103 +1,72 @@
-import abc
-from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any, Optional
 import numpy as np
 
-@dataclass
-class AgentPrediction:
-    """Represents a prediction made by an agent in the Cognix framework."""
-    agent_id: str
-    prediction: np.ndarray
-    probabilities: np.ndarray
-    confidence: float
-    timestamp: datetime
-    raw_output: Optional[Any] = None
+from cognix.core.interfaces import AgentInterface, UncertaintyEstimator
+from cognix.core.types import PredictionResult, UncertaintyResult
 
-@dataclass
-class AgentHealth:
-    """Represents the health and reliability status of an agent."""
-    agent_id: str
-    is_healthy: bool
-    reliability_score: float  # Value between 0.0 and 1.0
-    last_updated: datetime
-    degradation_reason: Optional[str] = None
-
-@dataclass
-class AgentMetadata:
-    """Metadata describing an agent's capabilities and domain."""
-    agent_id: str
-    name: str
-    domain: str
-    modality: str
-    description: str
-
-class BaseAgent(abc.ABC):
+class StandardAgent(AgentInterface):
     """
-    Abstract base class for all agents in the COGNIX framework.
-    Requires implementation of prediction, uncertainty estimation, metadata, health, and explanation.
+    Standard implementation of a COGNIX Agent.
+    
+    This agent wraps an underlying model (e.g., PyTorch, sklearn) and an 
+    UncertaintyEstimator plugin. It provides a standardized interface for the
+    DecisionEngine to query predictions and uncertainty estimates without needing
+    to know the internal workings of the model.
     """
     
-    @abc.abstractmethod
-    def predict(self, inputs: Any) -> AgentPrediction:
-        """Generate a prediction given the input."""
-        pass
+    def __init__(
+        self, 
+        agent_id: str, 
+        model: Any, 
+        uncertainty_estimator: UncertaintyEstimator,
+        domain_metadata: Optional[dict] = None
+    ):
+        self.agent_id = agent_id
+        self.model = model
+        self.uncertainty_estimator = uncertainty_estimator
+        self._metadata = domain_metadata or {}
+        
+        # Ensure metadata includes the agent_id
+        self._metadata["agent_id"] = agent_id
+        
+        # Health status for experimental simulation (fault injection)
+        self.healthy = True
 
-    @abc.abstractmethod
-    def estimate_uncertainty(self, inputs: Any) -> float:
-        """Estimate the uncertainty of a prediction on the given inputs."""
-        pass
+    def predict(self, observation: Any) -> PredictionResult:
+        """
+        Generate a prediction given the input observation.
+        """
+        if not self.healthy:
+            return PredictionResult(value=0.5, confidence=0.0, metadata={"status": "unhealthy"})
+            
+        import torch
+        # Simplified for PyTorch models in synthetic experiment
+        self.model.eval()
+        with torch.no_grad():
+            x_t = torch.FloatTensor(observation)
+            if x_t.dim() == 1:
+                x_t = x_t.unsqueeze(0)
+            out = self.model(x_t).item()
+            
+        return PredictionResult(
+            value=out,
+            confidence=float(out)
+        )
 
-    @abc.abstractmethod
-    def metadata(self) -> AgentMetadata:
+    def estimate_uncertainty(self, observation: Any) -> UncertaintyResult:
+        """
+        Estimate uncertainty using the injected UncertaintyEstimator plugin.
+        """
+        if not self.healthy:
+            return UncertaintyResult(
+                prediction=0.5,
+                epistemic=1.0,  # Max uncertainty
+                aleatoric=1.0,
+                total=2.0
+            )
+            
+        return self.uncertainty_estimator.estimate(self.model, observation)
+
+    def metadata(self) -> dict:
         """Return agent metadata."""
-        pass
-
-    @abc.abstractmethod
-    def health(self) -> AgentHealth:
-        """Return the current health status of the agent."""
-        pass
-
-    @abc.abstractmethod
-    def explain(self, inputs: Any) -> str:
-        """Provide an explanation for the agent's behavior on the given inputs."""
-        pass
-
-class NullAgent(BaseAgent):
-    """
-    A safe default agent that returns maximum uncertainty and a default zero prediction.
-    Useful for fallbacks when active agents degrade or fail.
-    """
-    
-    def predict(self, inputs: Any) -> AgentPrediction:
-        return AgentPrediction(
-            agent_id="null_agent",
-            prediction=np.array([0]),
-            probabilities=np.array([0.0]),
-            confidence=0.0,
-            timestamp=datetime.now(),
-            raw_output=None
-        )
-
-    def estimate_uncertainty(self, inputs: Any) -> float:
-        return 1.0  # Maximum uncertainty
-
-    def metadata(self) -> AgentMetadata:
-        return AgentMetadata(
-            agent_id="null_agent",
-            name="Null Agent",
-            domain="none",
-            modality="none",
-            description="Safe fallback agent returning max uncertainty."
-        )
-
-    def health(self) -> AgentHealth:
-        return AgentHealth(
-            agent_id="null_agent",
-            is_healthy=True,
-            reliability_score=1.0,
-            last_updated=datetime.now()
-        )
-
-    def explain(self, inputs: Any) -> str:
-        return "Null agent always returns a default zero prediction and max uncertainty."
+        return self._metadata

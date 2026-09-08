@@ -1,5 +1,5 @@
 from .base import UncertaintyEstimator, UncertaintyEstimate
-from .mc_dropout import MonteCarloDropout
+from .mc_dropout import MCDropout as MonteCarloDropout
 from .deep_ensemble import DeepEnsemble
 from .decomposition import UncertaintyDecomposition
 from .ood import OODDetector

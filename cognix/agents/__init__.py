@@ -1,21 +1,14 @@
-from .base import BaseAgent, AgentPrediction, AgentHealth, AgentMetadata, NullAgent
-from .registry import AgentRegistry
-from .adapters import (
-    CallableAgentAdapter,
-    SklearnAgentAdapter,
-    PyTorchAgentAdapter,
-    LLMAgentAdapter
-)
+from .base import StandardAgent
+# Provide backward compatibility aliases for tests
+BaseAgent = StandardAgent
+
+# NullAgent stub for tests
+class NullAgent(StandardAgent):
+    def __init__(self, agent_id="null"):
+        super().__init__(agent_id, None, None)
 
 __all__ = [
+    "StandardAgent",
     "BaseAgent",
-    "AgentPrediction",
-    "AgentHealth",
-    "AgentMetadata",
-    "NullAgent",
-    "AgentRegistry",
-    "CallableAgentAdapter",
-    "SklearnAgentAdapter",
-    "PyTorchAgentAdapter",
-    "LLMAgentAdapter"
+    "NullAgent"
 ]

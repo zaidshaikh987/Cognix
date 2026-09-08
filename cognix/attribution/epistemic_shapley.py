@@ -16,27 +16,30 @@ import numpy as np
 import random
 from typing import Callable, Any
 
-class EpistemicShapley:
-    def compute(self, agent_ids: list[str], uncertainty_fn: Callable[[list[str]], float], num_samples: int = 100) -> dict[str, float]:
+from cognix.core.interfaces import AttributionMethod
+
+class EpistemicShapley(AttributionMethod):
+    def compute(self, agents: list[str], prediction_function: Callable[[list[str]], float], target_output: Any = None) -> dict[str, float]:
         """
         Use Monte Carlo approximation of Shapley values.
         """
-        shapley_values = {agent: 0.0 for agent in agent_ids}
-        n = len(agent_ids)
+        shapley_values = {agent: 0.0 for agent in agents}
+        n = len(agents)
         
         if n == 0:
             return shapley_values
             
+        num_samples = 100
         for _ in range(num_samples):
-            permutation = list(agent_ids)
+            permutation = list(agents)
             random.shuffle(permutation)
             
             coalition = []
-            prev_uncertainty = uncertainty_fn(coalition)
+            prev_uncertainty = prediction_function(coalition)
             
             for agent in permutation:
                 coalition.append(agent)
-                curr_uncertainty = uncertainty_fn(coalition)
+                curr_uncertainty = prediction_function(coalition)
                 # Contribution is reduction in uncertainty (or change)
                 # phi_i = sigma_e(coalition WITH agent i) - sigma_e(coalition WITHOUT agent i)
                 marginal_contribution = curr_uncertainty - prev_uncertainty
@@ -44,7 +47,7 @@ class EpistemicShapley:
                 prev_uncertainty = curr_uncertainty
                 
         # Average over samples
-        for agent in agent_ids:
+        for agent in agents:
             shapley_values[agent] /= num_samples
             
         return shapley_values

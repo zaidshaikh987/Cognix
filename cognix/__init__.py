@@ -24,13 +24,13 @@ __description__ = "A domain-agnostic, uncertainty-aware multi-agent AI decision 
 # Core public API
 from cognix.engine.decision_engine import DecisionEngine
 from cognix.engine.result import DecisionResult, RiskLevel, DecisionOutcome
-from cognix.agents.base import BaseAgent, AgentPrediction, AgentHealth
+from cognix.agents.base import StandardAgent
 from cognix.agents.registry import AgentRegistry
-from cognix.uncertainty.mc_dropout import MonteCarloDropout
+from cognix.uncertainty.mc_dropout import MCDropout as MonteCarloDropout
 from cognix.uncertainty.deep_ensemble import DeepEnsemble
 from cognix.uncertainty.decomposition import UncertaintyDecomposition
 from cognix.belief.bayesian import BayesianBelief
-from cognix.belief.fusion import BeliefFuser, FusionStrategy
+from cognix.belief.fusion import EpistemicWeightedFusion, AverageFusion
 from cognix.calibration.conformal import ConformalPredictor
 from cognix.calibration.temperature import TemperatureScaling
 from cognix.decision.escalation import EscalationEngine
@@ -42,16 +42,14 @@ __all__ = [
     "DecisionResult",
     "RiskLevel",
     "DecisionOutcome",
-    "BaseAgent",
-    "AgentPrediction",
-    "AgentHealth",
+    "StandardAgent",
     "AgentRegistry",
     "MonteCarloDropout",
     "DeepEnsemble",
     "UncertaintyDecomposition",
     "BayesianBelief",
-    "BeliefFuser",
-    "FusionStrategy",
+    "EpistemicWeightedFusion",
+    "AverageFusion",
     "ConformalPredictor",
     "TemperatureScaling",
     "EscalationEngine",

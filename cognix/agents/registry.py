@@ -1,6 +1,6 @@
 import threading
 from typing import Dict, List, Optional
-from .base import BaseAgent
+from cognix.core.interfaces import AgentInterface
 
 class AgentRegistry:
     """
@@ -8,10 +8,10 @@ class AgentRegistry:
     Provides mechanisms to register, unregister, and query agents based on their health.
     """
     def __init__(self):
-        self._agents: Dict[str, BaseAgent] = {}
+        self._agents: Dict[str, AgentInterface] = {}
         self._lock = threading.RLock()
 
-    def register(self, agent: BaseAgent) -> None:
+    def register(self, agent: AgentInterface) -> None:
         """Register a new agent in the registry."""
         with self._lock:
             meta = agent.metadata()
@@ -23,17 +23,17 @@ class AgentRegistry:
             if agent_id in self._agents:
                 del self._agents[agent_id]
 
-    def get(self, agent_id: str) -> Optional[BaseAgent]:
+    def get(self, agent_id: str) -> Optional[AgentInterface]:
         """Retrieve an agent by its ID."""
         with self._lock:
             return self._agents.get(agent_id)
 
-    def list_agents(self) -> List[BaseAgent]:
+    def list_agents(self) -> List[AgentInterface]:
         """List all registered agents."""
         with self._lock:
             return list(self._agents.values())
 
-    def healthy_agents(self) -> List[BaseAgent]:
+    def healthy_agents(self) -> List[AgentInterface]:
         """List all registered agents that are currently healthy."""
         with self._lock:
             return [agent for agent in self._agents.values() if agent.health().is_healthy]

@@ -25,133 +25,7 @@ from cognix.engine.result import DecisionResult
 logger = logging.getLogger(__name__)
 
 
-def _build_uncertainty(spec: Any) -> Any:
-    """Resolve uncertainty estimator from string shorthand or return object as-is."""
-    if spec is None:
-        return None
-    if not isinstance(spec, str):
-        return spec
-    spec = spec.lower()
-    if spec == "mc_dropout":
-        from cognix.uncertainty.mc_dropout import MonteCarloDropout
-        return MonteCarloDropout()
-    if spec == "deep_ensemble":
-        from cognix.uncertainty.deep_ensemble import DeepEnsemble
-        return DeepEnsemble()
-    raise ValueError(
-        f"Unknown uncertainty method: {spec!r}. "
-        "Valid strings: 'mc_dropout', 'deep_ensemble'. "
-        "Or pass an UncertaintyEstimator instance directly."
-    )
 
-
-def _build_belief(spec: Any) -> Any:
-    """Resolve belief fuser from string shorthand or return object as-is."""
-    if spec is None:
-        return None
-    if not isinstance(spec, str):
-        return spec
-    from cognix.belief.base import FusionStrategy
-    from cognix.belief.fusion import CognixBeliefFuser
-    mapping = {
-        "uniform": FusionStrategy.UNIFORM,
-        "majority": FusionStrategy.MAJORITY,
-        "confidence": FusionStrategy.CONFIDENCE,
-        "reliability": FusionStrategy.RELIABILITY,
-        "epistemic_weighted": FusionStrategy.EPISTEMIC_WEIGHTED,
-        "bayesian": FusionStrategy.BAYESIAN,
-    }
-    strategy_key = spec.lower()
-    if strategy_key not in mapping:
-        raise ValueError(
-            f"Unknown belief fusion method: {spec!r}. "
-            f"Valid strings: {list(mapping.keys())}"
-        )
-    fuser = CognixBeliefFuser()
-    fuser.default_strategy = mapping[strategy_key]
-    return fuser
-
-
-def _build_calibrator(spec: Any) -> Any:
-    """Resolve calibrator from string shorthand or return object as-is."""
-    if spec is None:
-        return None
-    if not isinstance(spec, str):
-        return spec
-    spec = spec.lower()
-    if spec == "conformal":
-        from cognix.calibration.conformal import ConformalPredictor
-        return ConformalPredictor()
-    if spec == "temperature":
-        from cognix.calibration.temperature import TemperatureScaling
-        return TemperatureScaling()
-    raise ValueError(f"Unknown calibrator: {spec!r}. Valid strings: 'conformal', 'temperature'.")
-
-
-def _build_communication(spec: Any) -> Any:
-    """Resolve communication protocol from string shorthand."""
-    if spec is None:
-        return None
-    if not isinstance(spec, str):
-        return spec
-    spec = spec.lower()
-    if spec == "top_k":
-        from cognix.communication.top_k import TopKCommunication
-        return TopKCommunication()
-    if spec == "information_gain":
-        from cognix.communication.information_gain import InformationGainRouter
-        return InformationGainRouter()
-    raise ValueError(f"Unknown communication method: {spec!r}. Valid: 'top_k', 'information_gain'.")
-
-
-def _build_attribution(spec: Any) -> Any:
-    """Resolve attribution from string shorthand."""
-    if spec is None:
-        return None
-    if not isinstance(spec, str):
-        return spec
-    spec = spec.lower()
-    if spec == "epistemic_shapley":
-        from cognix.explainability.epistemic_shapley import EpistemicShapley
-        return EpistemicShapley()
-    if spec == "shap":
-        from cognix.explainability.shap_adapter import SHAPAdapter
-        return SHAPAdapter()
-    raise ValueError(f"Unknown attribution method: {spec!r}. Valid: 'epistemic_shapley', 'shap'.")
-
-
-def _build_graph(spec: Any) -> Any:
-    """Resolve graph module from string shorthand."""
-    if spec is None:
-        return None
-    if not isinstance(spec, str):
-        return spec
-    spec = spec.lower()
-    if spec == "epistemic_gat":
-        from cognix.graph.epistemic_gat import EpistemicGAT
-        return EpistemicGAT()
-    if spec == "gat":
-        from cognix.graph.gat import GATNetwork
-        return GATNetwork()
-    if spec == "gcn":
-        from cognix.graph.gcn import GCNNetwork
-        return GCNNetwork()
-    raise ValueError(f"Unknown graph method: {spec!r}. Valid: 'epistemic_gat', 'gat', 'gcn'.")
-
-
-def _build_escalation(spec: Any) -> Any:
-    """Resolve escalation engine."""
-    if spec is None:
-        return None
-    if isinstance(spec, bool) and spec:
-        from cognix.decision.escalation import EscalationEngine
-        return EscalationEngine()
-    if isinstance(spec, bool) and not spec:
-        return None
-    if not isinstance(spec, str):
-        return spec
-    from cognix.decision.escalation import EscalationEngine
-    return EscalationEngine()
 
 
 class DecisionEngine:
@@ -183,17 +57,19 @@ class DecisionEngine:
         attribution: Any = None,
         escalation: Any = None,
         graph: Any = None,
+        mode: str = "production",
     ) -> None:
         from cognix.config.schema import CognixConfig
         self.config = config or CognixConfig()
+        self.mode = mode
 
-        self.uncertainty = _build_uncertainty(uncertainty)
-        self.belief = _build_belief(belief)
-        self.calibrator = _build_calibrator(calibrator)
-        self.communication = _build_communication(communication)
-        self.attribution = _build_attribution(attribution)
-        self.escalation_module = _build_escalation(escalation)
-        self.graph = _build_graph(graph)
+        self.uncertainty = uncertainty
+        self.belief = belief
+        self.calibrator = calibrator
+        self.communication = communication
+        self.attribution = attribution
+        self.escalation_module = escalation
+        self.graph = graph
 
         self.pipeline = CognixPipeline(
             config=self.config,
@@ -204,6 +80,7 @@ class DecisionEngine:
             communication=self.communication,
             attribution=self.attribution,
             escalation=self.escalation_module,
+            mode=mode,
         )
 
         logger.info(
@@ -221,9 +98,13 @@ class DecisionEngine:
         agents: list[Any],
         input_data: Any,
         context: dict[str, Any] | None = None,
+        agent_reliabilities: dict[str, float] | None = None,
     ) -> DecisionResult:
         """Run the full COGNIX pipeline and return a structured DecisionResult."""
-        return self.pipeline.run(agents, input_data, context or {})
+        return self.pipeline.run(
+            agents, input_data, context or {},
+            agent_reliabilities=agent_reliabilities,
+        )
 
     def configure(self, config: Any) -> None:
         """Update the engine configuration."""

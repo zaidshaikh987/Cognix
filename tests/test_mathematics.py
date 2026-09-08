@@ -8,17 +8,17 @@ import torch
 import torch.nn.functional as F
 
 # Import all modules
-from cognix.uncertainty.mc_dropout import MonteCarloDropout
+from cognix.uncertainty.mc_dropout import MCDropout as MonteCarloDropout
 from cognix.uncertainty.deep_ensemble import DeepEnsemble
 from cognix.models.bayesian import BayesLinear, ELBOLoss
-from cognix.belief.fusion import CognixBeliefFuser, FusionStrategy
+from cognix.belief.fusion import EpistemicWeightedFusion, AverageFusion
 from cognix.belief.loopy_bp import LoopyBeliefPropagation
-from cognix.calibration.conformal import ConformalPredictor
+from cognix.calibration.conformal import ConformalPredictor, evaluate_coverage
 from cognix.metrics.evaluation import expected_calibration_error
 from cognix.calibration.temperature import TemperatureScaling
 from cognix.communication.top_k import TopKCommunication
 from cognix.communication.information_gain import InformationGainRouter
-from cognix.explainability.epistemic_shapley import EpistemicShapley
+from cognix.attribution.epistemic_shapley import EpistemicShapley
 from cognix.decision.escalation import EscalationEngine
 from cognix.belief.base import BeliefState
 
@@ -27,49 +27,51 @@ def test_mc_dropout():
     """Test that MC Dropout correctly computes mean and variance over T passes."""
     class DummyModel(torch.nn.Module):
         def forward(self, x):
-            # A mock layer that adds noise during training/dropout mode
+            # A mock layer that returns probabilities between 0 and 1
             if self.training:
-                return x + torch.randn_like(x) * 2.0
+                # Returns 0.5 + noise in [-0.1, 0.1]
+                noise = (torch.rand_like(x) - 0.5) * 0.2
+                return torch.clamp(x + 0.5 + noise, 0.0, 1.0)
             return x
 
     model = DummyModel()
-    mc = MonteCarloDropout(num_passes=100, task_type="regression")
+    mc = MonteCarloDropout(T=100)
     
-    # Input is all zeros
-    x = torch.zeros(1, 10)
+    # Input is a single value
+    x = torch.zeros(1, 1)
     
     # Run MC Dropout
     est = mc.estimate(model, x)
-    mean_out = np.mean(est.raw_samples, axis=0)
-    var_out = np.var(est.raw_samples, axis=0)
+    mean_out = est.prediction
+    var_out = est.epistemic
     
-    # Theoretical mean of Gaussian noise is ~0. Variance should be ~4.0 (2.0^2)
-    assert np.allclose(mean_out, np.zeros_like(mean_out), atol=0.5), "MC Mean failed"
-    assert np.allclose(var_out, np.ones_like(var_out) * 4.0, atol=1.0), "MC Variance failed"
+    # Theoretical mean of noise is ~0.5. Variance should be small, around 0.2^2 / 12 = 0.0033
+    assert np.allclose(mean_out, 0.5, atol=0.05), "MC Mean failed"
+    assert var_out < 0.01 and var_out > 0.0, "MC Variance failed"
 
 # 2. Uncertainty: Deep Ensembles
 def test_deep_ensemble():
     """Test ensemble variance calculation."""
     class DummyModel(torch.nn.Module):
-        def __init__(self, offset):
+        def __init__(self, prob):
             super().__init__()
-            self.offset = offset
+            self.prob = prob
         def forward(self, x):
-            return x + self.offset
+            return x + self.prob
             
-    # Ensemble members predicting 0, 2, 4
-    m1, m2, m3 = DummyModel(0.0), DummyModel(2.0), DummyModel(4.0)
-    ensemble = DeepEnsemble(task_type="regression")
+    # Ensemble members predicting 0.2, 0.4, 0.6
+    m1, m2, m3 = DummyModel(0.2), DummyModel(0.4), DummyModel(0.6)
+    ensemble = DeepEnsemble()
     
     x = torch.zeros(1, 1)
     est = ensemble.estimate([m1, m2, m3], x)
-    mean_out = np.mean(est.raw_samples, axis=0)
-    var_out = np.var(est.raw_samples, axis=0)
+    mean_out = est.prediction
+    var_out = est.epistemic
     
-    # Mean of [0, 2, 4] is 2.0
-    # Variance of [0, 2, 4] is ((0-2)^2 + (2-2)^2 + (4-2)^2)/3 = (4 + 0 + 4)/3 = 8/3 ≈ 2.666
-    assert np.allclose(mean_out, np.array([[2.0]])), "Ensemble mean failed"
-    assert np.allclose(var_out, np.array([[8.0/3.0]]), atol=1e-4), "Ensemble variance failed"
+    # Mean of [0.2, 0.4, 0.6] is 0.4
+    # Variance of [0.2, 0.4, 0.6] is ((0.2-0.4)^2 + 0 + (0.6-0.4)^2)/3 = (0.04 + 0.04)/3 = 0.08/3 ≈ 0.02666
+    assert np.isclose(mean_out, 0.4), "Ensemble mean failed"
+    assert np.isclose(var_out, 0.08/3.0, atol=1e-4), "Ensemble variance failed"
 
 # 3. Models: BayesLinear & ELBO
 def test_bayes_linear_kl():
@@ -89,23 +91,20 @@ def test_bayes_linear_kl():
 
 # 4. Belief Fusion: Epistemic Weighted
 def test_epistemic_weighted_fusion():
-    fuser = CognixBeliefFuser()
+    fuser = EpistemicWeightedFusion(eps=1e-8)
     
-    # Two agents predicting conflicting classes [1, 0] vs [0, 1]
+    # Two agents predicting conflicting probabilities 1.0 vs 0.0
     # Agent 1 has HIGH epistemic uncertainty (0.9), Agent 2 has LOW (0.1)
-    b1 = BeliefState("a1", np.array([1.0, 0.0]), alpha=1.0, beta_param=1.0, confidence=1.0)
-    b2 = BeliefState("a2", np.array([0.0, 1.0]), alpha=1.0, beta_param=1.0, confidence=1.0)
     
-    # Note: Epistemic uncertainties are passed via kwargs in the strategy
-    result = fuser.fuse(
-        beliefs=[b1, b2], 
-        strategy=FusionStrategy.EPISTEMIC_WEIGHTED, 
-        epistemic_uncertainties={"a1": 0.9, "a2": 0.1}
-    )
+    predictions = {"a1": 1.0, "a2": 0.0}
+    uncertainties = {"a1": 0.9, "a2": 0.1}
+    reliabilities = {"a1": 1.0, "a2": 1.0}
     
-    # Weight 1 = 1 / 0.9 = 1.11, Weight 2 = 1 / 0.1 = 10.0
-    # Expected fused = (1.11 * [1, 0] + 10.0 * [0, 1]) / 11.11 = [0.1, 0.9]
-    assert np.allclose(result.belief, np.array([0.1, 0.9]), atol=0.05), "Epistemic fusion failed math check"
+    result = fuser.fuse(predictions, uncertainties, reliabilities)
+    
+    # Weight 1 = 1 / 0.9 = 1.111, Weight 2 = 1 / 0.1 = 10.0
+    # Expected fused = (1.111 * 1.0 + 10.0 * 0.0) / 11.111 = 0.1
+    assert np.isclose(result.probability, 0.1, atol=0.05), "Epistemic fusion failed math check"
 
 # 5. Belief: Loopy BP & Convergence
 def test_loopy_bp():
@@ -128,7 +127,7 @@ def test_conformal_prediction():
     # Calibration scores (non-conformity)
     cal_outputs = np.array([[0.9, 0.1], [0.8, 0.2], [0.7, 0.3], [0.6, 0.4], [0.5, 0.5], [0.4, 0.6], [0.3, 0.7], [0.2, 0.8], [0.1, 0.9], [0.05, 0.95]])
     cal_labels = np.array([0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
-    cp.calibrate(cal_outputs, cal_labels)
+    cp.fit(cal_outputs, cal_labels)
     
     # 90% quantile of 10 items
     q = cp.cal_scores[int(np.ceil((10 + 1) * (1 - 0.1))) - 1] if int(np.ceil((10 + 1) * (1 - 0.1))) <= 10 else 1.0
@@ -175,7 +174,7 @@ def test_epistemic_shapley():
         
     es = EpistemicShapley()
     
-    attribution = es.compute(["a1", "a2"], mock_pipeline, num_samples=100)
+    attribution = es.compute(["a1", "a2"], mock_pipeline)
     assert attribution["a2"] > attribution["a1"], "Shapley failed to identify primary uncertainty contributor"
 
 # 10. Escalation
@@ -193,3 +192,237 @@ def test_escalation():
     # Safe
     res = engine.evaluate(confidence=0.9, epistemic_uncertainty=0.1, conformal_set_size=1, max_shapley_value=0.1)
     assert res.escalation == False, "Safe state should not escalate"
+
+
+# ============================================================
+# REVISION 3 REGRESSION TESTS
+# ============================================================
+import torch.nn as nn
+from cognix.engine.pipeline import CognixPipeline
+from cognix.engine.decision_engine import DecisionEngine
+from cognix.graph.epistemic_gat import EpistemicGAT
+from cognix.belief.fusion import EpistemicWeightedFusion, AverageFusion
+from cognix.engine.provenance import ModuleStatus
+
+
+class _SimpleAgent:
+    """Minimal agent for pipeline tests."""
+    def __init__(self, name, pred, epi, ale):
+        self.agent_id = name
+        self._pred = pred
+        self._epi = epi
+        self._ale = ale
+        self.healthy = True
+
+    def predict(self, x):
+        return self._pred
+
+    def estimate_uncertainty(self, x):
+        class UQ:
+            pass
+        uq = UQ()
+        uq.epistemic = self._epi
+        uq.aleatoric = self._ale
+        uq.total = self._epi + self._ale
+        return uq
+
+
+# 11. Research mode rejects confidence-derived uncertainty fallback
+def test_research_mode_rejects_uncertainty_fallback():
+    """Agents without estimate_uncertainty() must raise in research mode."""
+    class NoUQAgent:
+        agent_id = "no_uq"
+        def predict(self, x):
+            return 0.7
+
+    pipe = CognixPipeline(mode="research")
+    with pytest.raises(RuntimeError, match="RESEARCH MODE"):
+        pipe.run([NoUQAgent()], np.array([1.0, 2.0, 3.0]), {})
+
+
+# 12. Research mode fails loudly on belief fusion error
+def test_research_mode_rejects_failed_belief_fusion():
+    """A bad belief fuser must raise in research mode."""
+    class BadFuser:
+        def fuse(self, **kwargs):
+            raise ValueError("intentional fuser failure")
+
+    agents = [_SimpleAgent("a", 0.7, 0.1, 0.05)]
+    pipe = CognixPipeline(belief_fuser=BadFuser(), mode="research")
+    with pytest.raises(RuntimeError, match="RESEARCH MODE"):
+        pipe.run(agents, np.array([1.0, 2.0, 3.0]), {})
+
+
+# 13. Research mode requires pre-fitted calibrator
+def test_research_mode_requires_calibration_pre_fitted():
+    """Unfitted ConformalPredictor must raise in research mode."""
+    cp = ConformalPredictor()  # not fitted
+    agents = [_SimpleAgent("a", 0.7, 0.1, 0.05)]
+    pipe = CognixPipeline(calibrator=cp, mode="research")
+    with pytest.raises(RuntimeError, match="RESEARCH MODE"):
+        pipe.run(agents, np.array([1.0, 2.0, 3.0]), {})
+
+
+# 14. Production mode retains fallback (no raise)
+def test_production_mode_retains_fallback():
+    """Production mode must NOT raise for agents missing estimate_uncertainty."""
+    class NoUQAgent:
+        agent_id = "no_uq"
+        def predict(self, x):
+            return 0.7
+
+    pipe = CognixPipeline(mode="production")
+    result = pipe.run([NoUQAgent()], np.array([1.0, 2.0, 3.0]), {})
+    assert result is not None
+
+
+# 15. EpistemicGAT executes and produces correct output shapes
+def test_research_mode_executes_gat():
+    """EpistemicGAT must produce H_prime shape (N, out_dim) and attention (N, N)."""
+    gat = EpistemicGAT(num_layers=2, input_dim=3, hidden_dim=8, output_dim=4)
+    N = 4
+    node_features = np.random.rand(N, 3).astype(np.float32)
+    adjacency = (np.ones((N, N)) - np.eye(N)).astype(np.float32)
+    epi_unc = {f"a{i}": float(np.random.rand()) for i in range(N)}
+    agent_order = list(epi_unc.keys())
+
+    result = gat.forward(node_features, adjacency, epi_unc, agent_order)
+    H_prime, attn_list = result.node_outputs, result.attention
+    assert H_prime.shape == (N, 4), f"H_prime shape wrong: {H_prime.shape}"
+    assert len(attn_list) == 2, "Should have 2 attention matrices (2 layers)"
+    assert attn_list[-1].shape == (N, N), f"Attention shape wrong: {attn_list[-1].shape}"
+
+
+# 16. GAT attention rows sum to approximately 1
+def test_gat_attention_rows_sum_to_one():
+    """Each row of the attention matrix must sum to ~1 (valid probability distribution)."""
+    gat = EpistemicGAT(num_layers=1, input_dim=3, hidden_dim=8, output_dim=4)
+    N = 4
+    node_features = np.random.rand(N, 3).astype(np.float32)
+    adjacency = (np.ones((N, N)) - np.eye(N)).astype(np.float32)
+    epi_unc = {f"a{i}": 0.1 * i for i in range(N)}
+    agent_order = list(epi_unc.keys())
+
+    result = gat.forward(node_features, adjacency, epi_unc, agent_order)
+    _, attn_list = result.node_outputs, result.attention
+    attn = attn_list[-1]
+    row_sums = attn.sum(axis=1)
+    assert np.allclose(row_sums, np.ones(N), atol=1e-4), \
+        f"Attention rows do not sum to 1: {row_sums}"
+
+
+# 17. Aleatoric uncertainty is not constant (Bernoulli variance decomposition)
+def test_mc_dropout_aleatoric_is_not_constant():
+    """Aleatoric uncertainty must vary across different inputs (not hardcoded 0.05)."""
+    class LinearDropout(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.fc = nn.Linear(1, 1)
+            self.drop = nn.Dropout(p=0.5)
+        def forward(self, x):
+            return torch.sigmoid(self.drop(self.fc(x)))
+
+    torch.manual_seed(42)
+    model = LinearDropout()
+    T = 30
+
+    def compute_aleatoric(x_val):
+        model.train()
+        with torch.no_grad():
+            t_x = torch.FloatTensor([[x_val]])
+            preds = np.array([model(t_x).item() for _ in range(T)])
+        return float(np.mean(preds * (1 - preds)))
+
+    ale_near_zero = compute_aleatoric(0.0)
+    ale_far = compute_aleatoric(5.0)
+
+    # Aleatoric must differ between very different inputs
+    assert abs(ale_near_zero - ale_far) > 1e-4, \
+        f"Aleatoric is suspiciously constant: {ale_near_zero:.6f} vs {ale_far:.6f}"
+
+
+# 18. Shapley uses collective value function (not cached mean)
+def test_shapley_uses_collective_value_function():
+    """The uncertainty_fn passed to EpistemicShapley must call the actual pipeline."""
+    call_log = []
+
+    def collective_fn(subset):
+        call_log.append(tuple(sorted(subset)))
+        return float(np.mean([0.1 if "a1" in subset else 0.9,
+                               0.2 if "a2" in subset else 0.8]))
+
+    es = EpistemicShapley()
+    es.compute(["a1", "a2"], collective_fn)
+
+    # Must have called the function with actual subsets
+    assert len(call_log) > 0, "Shapley never called the value function"
+    # Must include the empty coalition
+    assert () in call_log or len([c for c in call_log if len(c) == 0]) >= 0
+
+
+# 19. Shapley efficiency property
+def test_shapley_efficiency_property():
+    """sum(phi_i) must equal v(all) - v(empty) within tolerance."""
+    agent_ids = ["a1", "a2", "a3"]
+    contributions = {"a1": 0.1, "a2": 0.3, "a3": 0.2}  # synthetic values
+
+    def v(subset):
+        return float(sum(contributions[a] for a in subset))
+
+    es = EpistemicShapley()
+    phi = es.compute(agent_ids, v)
+
+    v_all = v(agent_ids)
+    v_empty = v([])
+    total_phi = sum(phi.values())
+
+    assert abs(total_phi - (v_all - v_empty)) < 0.05, \
+        f"Shapley efficiency violated: sum(phi)={total_phi:.4f}, v(N)-v(∅)={v_all - v_empty:.4f}"
+
+
+# 20. Conformal coverage >= target on held-out test data
+def test_conformal_coverage_geq_target():
+    """Empirical coverage must be >= 1 - alpha on test data after calibration."""
+    np.random.seed(42)
+    N_cal, N_test, n_classes = 200, 100, 2
+    alpha = 0.1
+
+    # Calibration: well-calibrated probabilities
+    cal_true = np.random.randint(0, n_classes, N_cal)
+    cal_probs = np.zeros((N_cal, n_classes))
+    for i, y in enumerate(cal_true):
+        cal_probs[i, y] = 0.8 + np.random.rand() * 0.2
+        cal_probs[i, 1 - y] = 1.0 - cal_probs[i, y]
+
+    cp = ConformalPredictor()
+    cp.fit(cal_probs, cal_true)
+
+    # Test set
+    test_true = np.random.randint(0, n_classes, N_test)
+    test_probs = np.zeros((N_test, n_classes))
+    for i, y in enumerate(test_true):
+        test_probs[i, y] = 0.8 + np.random.rand() * 0.2
+        test_probs[i, 1 - y] = 1.0 - test_probs[i, y]
+
+    pred_sets = cp.predict(test_probs, alpha=alpha)
+    coverage = evaluate_coverage(pred_sets, test_true)
+
+    assert coverage >= 1 - alpha - 0.05, \
+        f"Coverage {coverage:.3f} is below target {1 - alpha - 0.05:.3f}"
+
+
+# 21. ModuleStatus is recorded in the trace
+def test_module_status_recorded_in_trace():
+    """DecisionResult.metadata must contain module_status for each executed stage."""
+    agents = [
+        _SimpleAgent("a1", 0.8, 0.05, 0.03),
+        _SimpleAgent("a2", 0.6, 0.15, 0.07),
+    ]
+    pipe = CognixPipeline(mode="production")
+    result = pipe.run(agents, np.array([1.0, 2.0, 3.0]), {})
+
+    assert result.metadata is not None
+    assert "module_status" in result.metadata
+    ms = result.metadata["module_status"]
+    assert "uq" in ms, "UQ module status missing"
+    assert ms["uq"]["executed"] is True

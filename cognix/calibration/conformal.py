@@ -9,7 +9,9 @@ class ConformalPredictionSet:
     quantile: float
     coverage_target: float
 
-class ConformalPredictor:
+from cognix.core.interfaces import Calibrator
+
+class ConformalPredictor(Calibrator):
     """
     Inductive Conformal Prediction.
     Reference: Vovk, V., Gammerman, A., & Shafer, G. (2005). Algorithmic Learning in a Random World. Springer.
@@ -20,7 +22,7 @@ class ConformalPredictor:
         self.cal_scores: Optional[np.ndarray] = None
         self.n_cal = 0
 
-    def calibrate(self, cal_outputs: np.ndarray, cal_labels: np.ndarray):
+    def fit(self, cal_outputs: np.ndarray, cal_labels: np.ndarray):
         """
         Fit on calibration set, compute nonconformity scores.
         Nonconformity score for classification: 1 - p_hat[true_class] (for softmax outputs)

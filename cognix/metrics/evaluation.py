@@ -15,12 +15,15 @@ except ImportError:
     _SKLEARN_AVAILABLE = False
 
 
-def calculate_ece(predictions: np.ndarray, ground_truths: np.ndarray, bins: int = 10) -> float:
+def calculate_ece(predictions: np.ndarray, ground_truths: np.ndarray, bins: int = 10, n_bins: int = None) -> float:
     """
     Calculate Expected Calibration Error (ECE) for binary classification.
     
     ECE = sum_{m=1}^M (|B_m| / n) * |acc(B_m) - conf(B_m)|
+    Accepts both 'bins' and 'n_bins' as parameter name for compatibility.
     """
+    if n_bins is not None:
+        bins = n_bins
     if len(predictions) == 0:
         return 0.0
         
@@ -46,6 +49,9 @@ def calculate_ece(predictions: np.ndarray, ground_truths: np.ndarray, bins: int 
             ece += weight * np.abs(avg_acc - avg_conf)
             
     return float(ece)
+
+# Alias for backwards compatibility and test imports
+expected_calibration_error = calculate_ece
 
 def accuracy(predictions: np.ndarray, ground_truths: np.ndarray) -> float:
     """Calculate binary accuracy."""
