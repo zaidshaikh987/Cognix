@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>COGNIX — Research Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ═══════════════════════════════════════════════════
+       DESIGN TOKENS
+    ═══════════════════════════════════════════════════ */
+    :root {
+      --bg:         #06060f;
+      --surface:    #0d0d20;
+      --surface2:   #131328;
+      --border:     rgba(108,99,255,0.18);
+      --border2:    rgba(255,255,255,0.06);
+
+      --purple:     #6c63ff;
+      --pink:       #ff6b9d;
+      --cyan:       #00d4ff;
+      --green:      #00e676;
+      --orange:     #ff9800;
+      --red:        #ff3d71;
+      --yellow:     #ffd740;
+      --blue:       #448aff;
+
+      --text:       #e8e8ff;
+      --text-muted: #7070a0;
+      --text-dim:   #404060;
+
+      --radius:     14px;
+      --radius-sm:  8px;
+      --transition: 0.35s cubic-bezier(0.4,0,0.2,1);
+      --glow-purple: 0 0 30px rgba(108,99,255,0.3);
+      --glow-green:  0 0 20px rgba(0,230,118,0.3);
+      --glow-red:    0 0 20px rgba(255,61,113,0.3);
+    }
+
+    /* ═══════════════════════════════════════════════════
+       RESET + BASE
+    ═══════════════════════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { height: 100%; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      background-image:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(108,99,255,0.12) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 30% at 90% 10%, rgba(0,212,255,0.06) 0%, transparent 60%);
+    }
+
+    /* ═══════════════════════════════════════════════════
+       SCROLLBAR
+    ═══════════════════════════════════════════════════ */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--surface); }
+    ::-webkit-scrollbar-thumb { background: var(--purple); border-radius: 3px; }
+
+    /* ═══════════════════════════════════════════════════
+       HEADER
+    ═══════════════════════════════════════════════════ */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 28px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(13,13,32,0.85);
+      backdrop-filter: blur(20px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+    }
+
+    .logo h1 {
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      background: linear-gradient(120deg, var(--purple), var(--cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .logo .tagline {
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    /* SCENARIO BADGE */
+    .scenario-pill {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 5px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: rgba(108,99,255,0.12);
+      color: var(--cyan);
+      letter-spacing: 0.04em;
+      transition: var(--transition);
+      white-space: nowrap;
+    }
+
+    /* LIVE INDICATOR */
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+    }
+
+    .live-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: var(--glow-green);
+      animation: pulse-live 1.5s infinite;
+    }
+
+    .live-dot.offline { background: var(--red); box-shadow: var(--glow-red); animation: none; }
+
+    @keyframes pulse-live {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    .latency-chip {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      color: var(--text-muted);
+      transition: var(--transition);
+    }
+
+    .latency-chip.fast  { color: var(--green);  border-color: rgba(0,230,118,0.3); }
+    .latency-chip.ok    { color: var(--yellow); border-color: rgba(255,215,64,0.3); }
+    .latency-chip.slow  { color: var(--red);    border-color: rgba(255,61,113,0.3); }
+
+    /* ═══════════════════════════════════════════════════
+       GRID LAYOUT
+    ═══════════════════════════════════════════════════ */
+    .dashboard {
+      padding: 20px 24px 40px;
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(12, 1fr);
+      grid-template-areas:
+        "rsch rsch rsch rsch rsch rsch base base base base base base"
+        "dec  dec  dec  dec  dec  unc  unc  unc  unc  unc  unc  unc"
+        "agt  agt  agt  agt  fus  fus  fus  lat  lat  lat  lat  lat"
+        "shap shap shap shap shap shap hist hist hist hist hist hist"
+        "exp  exp  exp  exp  exp  exp  exp  exp  exp  exp  exp  exp";
+    }
+
+    /* ═══════════════════════════════════════════════════
+       GLASS CARD
+    ═══════════════════════════════════════════════════ */
+    .card {
+      background: linear-gradient(135deg, rgba(19,19,40,0.9), rgba(13,13,32,0.95));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      backdrop-filter: blur(16px);
+      transition: border-color var(--transition), box-shadow var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, rgba(108,99,255,0.04), transparent 60%);
+      pointer-events: none;
+    }
+
+    .card:hover {
+      border-color: rgba(108,99,255,0.35);
+      box-shadow: var(--glow-purple);
+    }
+
+    .card-title {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border2);
+    }
+
+    /* ═══════════════════════════════════════════════════
+       DECISION CARD
+    ═══════════════════════════════════════════════════ */
+    .card-decision { grid-area: dec; }
+
+    .decision-inner {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .decision-badge {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      padding: 12px 28px;
+      border-radius: 12px;
+      border: 2px solid;
+      transition: all var(--transition);
+      white-space: nowrap;
+      min-width: 200px;
+      text-align: center;
+    }
+
+    .decision-badge.ACT              { color: var(--green);  border-color: var(--green);  background: rgba(0,230,118,0.08);  box-shadow: var(--glow-green); }
+    .decision-badge.WAIT             { color: var(--yellow); border-color: var(--yellow); background: rgba(255,215,64,0.08); }
+    .decision-badge.REQUEST_INFORMATION { color: var(--cyan); border-color: var(--cyan); background: rgba(0,212,255,0.08); font-size: 1.2rem; }
+    .decision-badge.ABSTAIN          { color: var(--orange); border-color: var(--orange); background: rgba(255,152,0,0.08); }
+    .decision-badge.ESCALATE         { color: var(--red);    border-color: var(--red);    background: rgba(255,61,113,0.08);  box-shadow: var(--glow-red); animation: escalate-pulse 1s infinite; }
+
+    @keyframes escalate-pulse {
+      0%,100% { box-shadow: 0 0 10px rgba(255,61,113,0.3); }
+      50%     { box-shadow: 0 0 30px rgba(255,61,113,0.6); }
+    }
+
+    .decision-meta {
+      flex: 1;
+      min-width: 180px;
+    }
+
+    .risk-pill {
+      display: inline-block;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+    }
+
+    .risk-pill.LOW      { background: rgba(0,230,118,0.15); color: var(--green);  border: 1px solid rgba(0,230,118,0.4); }
+    .risk-pill.MODERATE { background: rgba(255,215,64,0.12); color: var(--yellow); border: 1px solid rgba(255,215,64,0.3); }
+    .risk-pill.HIGH     { background: rgba(255,61,113,0.12); color: var(--red);    border: 1px solid rgba(255,61,113,0.4); }
+
+    .conf-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .conf-track {
+      height: 8px;
+      border-radius: 4px;
+      background: var(--surface2);
+      overflow: hidden;
+    }
+
+    .conf-fill {
+      height: 100%;
+      border-radius: 4px;
+      background: linear-gradient(90deg, var(--purple), var(--cyan));
+      transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    .conf-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-top: 4px;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       UNCERTAINTY CARD
+    ═══════════════════════════════════════════════════ */
+    .card-uncertainty { grid-area: unc; }
+
+    .unc-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+
+    .unc-block {
+      background: var(--surface2);
+      border-radius: var(--radius-sm);
+      padding: 14px;
+      border: 1px solid var(--border2);
+      transition: var(--transition);
+    }
+
+    .unc-block:hover { border-color: var(--border); }
+
+    .unc-label {
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .unc-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.8rem;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 10px;
+    }
+
+    .unc-val.epistemic { color: var(--blue); }
+    .unc-val.aleatoric { color: var(--orange); }
+    .unc-val.total     { color: var(--red); }
+
+    .unc-bar-track {
+      height: 4px;
+      border-radius: 2px;
+      background: rgba(255,255,255,0.06);
+      overflow: hidden;
+    }
+
+    .unc-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.7s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    .unc-bar-fill.epistemic { background: var(--blue); }
+    .unc-bar-fill.aleatoric { background: var(--orange); }
+    .unc-bar-fill.total     { background: linear-gradient(90deg, var(--orange), var(--red)); }
+
+    .dominant-tag {
+      margin-top: 12px;
+      font-size: 0.68rem;
+      color: var(--text-muted);
+    }
+
+    .dominant-tag span {
+      color: var(--cyan);
+      font-weight: 600;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       AGENTS CARD
+    ═══════════════════════════════════════════════════ */
+    .card-agents  { grid-area: agt; }
+
+    .agent-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .agent-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      transition: var(--transition);
+    }
+
+    .agent-row:hover { border-color: var(--border); }
+
+    .agent-icon { font-size: 1.3rem; width: 30px; text-align: center; flex-shrink: 0; }
+
+    .agent-info { flex: 1; min-width: 0; }
+
+    .agent-name {
+      font-size: 0.8rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .agent-label {
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    .agent-trust-bar {
+      width: 80px;
+      flex-shrink: 0;
+    }
+
+    .trust-track {
+      height: 5px;
+      border-radius: 3px;
+      background: rgba(255,255,255,0.06);
+      overflow: hidden;
+      margin-top: 4px;
+    }
+
+    .trust-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: linear-gradient(90deg, var(--purple), var(--cyan));
+      transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    .trust-pct {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--text);
+      text-align: right;
+    }
+
+    .health-dot {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .health-dot.healthy   { background: var(--green);  box-shadow: 0 0 6px rgba(0,230,118,0.5); }
+    .health-dot.degraded  { background: var(--red);    box-shadow: 0 0 6px rgba(255,61,113,0.5); }
+
+    /* ═══════════════════════════════════════════════════
+       FUSION CARD
+    ═══════════════════════════════════════════════════ */
+    .card-fusion  { grid-area: fus; }
+
+    .stat-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+
+    .stat-box {
+      background: var(--surface2);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      border: 1px solid var(--border2);
+      text-align: center;
+    }
+
+    .stat-box-label { font-size: 0.6rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); }
+
+    .stat-box-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-top: 6px;
+      background: linear-gradient(120deg, var(--purple), var(--cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      transition: var(--transition);
+    }
+
+    .strategy-pill {
+      display: inline-block;
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: rgba(108,99,255,0.12);
+      border: 1px solid var(--border);
+      color: var(--purple);
+      text-transform: uppercase;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       LATENCY CARD
+    ═══════════════════════════════════════════════════ */
+    .card-latency { grid-area: lat; }
+
+    .latency-list { display: flex; flex-direction: column; gap: 9px; }
+
+    .latency-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .latency-name {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      width: 90px;
+      flex-shrink: 0;
+    }
+
+    .latency-track {
+      flex: 1;
+      height: 5px;
+      border-radius: 3px;
+      background: rgba(255,255,255,0.05);
+      overflow: hidden;
+    }
+
+    .latency-bar {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.6s cubic-bezier(0.4,0,0.2,1), background 0.4s;
+    }
+
+    .latency-bar.fast  { background: var(--green); }
+    .latency-bar.ok    { background: var(--yellow); }
+    .latency-bar.slow  { background: var(--red); }
+
+    .latency-ms {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      width: 48px;
+      text-align: right;
+      flex-shrink: 0;
+      color: var(--text-muted);
+    }
+
+    .total-latency {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .total-latency-label { font-size: 0.72rem; font-weight: 600; color: var(--text-muted); }
+
+    .total-latency-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    /* ═══════════════════════════════════════════════════
+       SHAPLEY CARD
+    ═══════════════════════════════════════════════════ */
+    .card-shapley { grid-area: shap; }
+
+    .shapley-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .shapley-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .shapley-agent {
+      font-size: 0.72rem;
+      font-weight: 600;
+      width: 90px;
+      flex-shrink: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .shapley-track {
+      flex: 1;
+      height: 10px;
+      border-radius: 5px;
+      background: rgba(255,255,255,0.05);
+      overflow: hidden;
+    }
+
+    .shapley-fill {
+      height: 100%;
+      border-radius: 5px;
+      background: linear-gradient(90deg, var(--purple), var(--pink));
+      transition: width 0.7s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    .shapley-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      width: 52px;
+      text-align: right;
+      flex-shrink: 0;
+      color: var(--text-muted);
+    }
+
+    /* ═══════════════════════════════════════════════════
+       HISTORY CARD
+    ═══════════════════════════════════════════════════ */
+    .card-history { grid-area: hist; }
+
+    #history-canvas {
+      width: 100%;
+      height: 120px;
+      border-radius: var(--radius-sm);
+      background: var(--surface2);
+      display: block;
+    }
+
+    .history-legend {
+      display: flex;
+      gap: 16px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.62rem;
+      color: var(--text-muted);
+    }
+
+    .legend-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       EXPLANATION CARD
+    ═══════════════════════════════════════════════════ */
+    .card-explanation { grid-area: exp; }
+
+    .explanation-body {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .explanation-text {
+      font-size: 0.85rem;
+      line-height: 1.7;
+      color: var(--text);
+      padding: 14px;
+      background: var(--surface2);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border2);
+      border-left: 3px solid var(--purple);
+    }
+
+    .reasoning-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .reasoning-list li {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      padding: 7px 12px;
+      background: var(--surface2);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border2);
+      transition: var(--transition);
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .reasoning-list li::before {
+      content: '→';
+      color: var(--purple);
+      flex-shrink: 0;
+      font-weight: 700;
+    }
+
+    .reasoning-list li:hover { border-color: var(--border); color: var(--text); }
+
+    /* ═══════════════════════════════════════════════════
+       ANIMATIONS + UTILS
+    ═══════════════════════════════════════════════════ */
+    .flash {
+      animation: flash-anim 0.4s ease;
+    }
+
+    @keyframes flash-anim {
+      0%   { opacity: 1; }
+      30%  { opacity: 0.3; }
+      100% { opacity: 1; }
+    }
+
+    .tick-counter {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--text-dim);
+    }
+
+    /* ═══════════════════════════════════════════════════
+       RESEARCH METRICS CARDS
+    ═══════════════════════════════════════════════════ */
+    .card-research { grid-area: rsch; }
+    .card-baselines { grid-area: base; }
+
+    .research-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .rsch-item {
+      background: var(--surface2);
+      border-radius: var(--radius-sm);
+      padding: 10px;
+      border: 1px solid var(--border2);
+    }
+    .rsch-label {
+      font-size: 0.55rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em;
+    }
+    .rsch-val {
+      font-size: 0.75rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-top: 4px; color: var(--cyan);
+    }
+
+    .baseline-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 10px;
+    }
+    
+    .baseline-col {
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    
+    .metric-row {
+      display: flex; justify-content: space-between; padding: 8px 12px; background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius-sm);
+    }
+    .metric-name { font-size: 0.7rem; color: var(--text-muted); }
+    .metric-val { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; font-weight: 700; }
+    .val-better { color: var(--green); }
+    .val-worse { color: var(--red); }
+
+    /* ═══════════════════════════════════════════════════
+       RESPONSIVE
+    ═══════════════════════════════════════════════════ */
+    @media (max-width: 1100px) {
+      .dashboard {
+        grid-template-columns: 1fr 1fr;
+        grid-template-areas:
+          "rsch rsch"
+          "base base"
+          "dec  dec"
+          "unc  unc"
+          "agt  fus"
+          "lat  lat"
+          "shap shap"
+          "hist hist"
+          "exp  exp";
+      }
+      .unc-grid { grid-template-columns: 1fr 1fr 1fr; }
+    }
+
+    @media (max-width: 700px) {
+      .dashboard { grid-template-columns: 1fr; grid-template-areas: "rsch" "base" "dec" "unc" "agt" "fus" "lat" "shap" "hist" "exp"; padding: 12px; }
+      .decision-inner { flex-direction: column; }
+      .explanation-body { grid-template-columns: 1fr; }
+      .unc-grid { grid-template-columns: 1fr; }
+      .research-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ─────────────────────── HEADER ─────────────────────── -->
+<header class="header">
+  <div class="logo">
+    <h1>COGNIX</h1>
+    <span class="tagline">Uncertainty-Aware Multi-Agent Decision Framework</span>
+  </div>
+  <div class="header-right">
+    <span class="scenario-pill" style="border-color: var(--orange); color: var(--orange); background: rgba(255,152,0,0.12); font-weight: 800;">DATA MODE: SYNTHETIC</span>
+    <span class="scenario-pill" id="hdr-scenario">Loading…</span>
+    <span class="tick-counter" id="hdr-tick">#0</span>
+    <span class="latency-chip fast" id="hdr-latency">— ms</span>
+    <div class="live-badge">
+      <div class="live-dot offline" id="live-dot"></div>
+      <span id="live-text">CONNECTING</span>
+    </div>
+  </div>
+</header>
+
+<!-- ─────────────────────── DASHBOARD GRID ─────────────────────── -->
+<main class="dashboard">
+
+  <!-- RESEARCH METADATA -->
+  <section class="card card-research">
+    <div class="card-title">🧪 Research Configuration</div>
+    <div class="research-grid">
+      <div class="rsch-item"><div class="rsch-label">Dataset</div><div class="rsch-val" id="meta-dataset">—</div></div>
+      <div class="rsch-item"><div class="rsch-label">Model</div><div class="rsch-val" id="meta-model">—</div></div>
+      <div class="rsch-item"><div class="rsch-label">Experiment</div><div class="rsch-val" id="meta-experiment">—</div></div>
+      <div class="rsch-item"><div class="rsch-label">Data Source</div><div class="rsch-val" id="meta-source">—</div></div>
+      <div class="rsch-item"><div class="rsch-label">Run ID</div><div class="rsch-val" id="meta-runid">—</div></div>
+      <div class="rsch-item"><div class="rsch-label">Seed</div><div class="rsch-val" id="meta-seed">—</div></div>
+    </div>
+  </section>
+
+  <!-- BASELINES -->
+  <section class="card card-baselines">
+    <div class="card-title">⚖️ Comparative Metrics (Moving Avg)</div>
+    <div class="baseline-grid">
+      <div class="baseline-col">
+        <div style="font-size:0.7rem; font-weight:700; color:var(--text-muted);">BASELINE (Average Fusion)</div>
+        <div class="metric-row"><span class="metric-name">ECE (Calibration Error)</span><span class="metric-val" id="base-ece">—</span></div>
+        <div class="metric-row"><span class="metric-name">Expected Accuracy</span><span class="metric-val" id="base-acc">—</span></div>
+      </div>
+      <div class="baseline-col">
+        <div style="font-size:0.7rem; font-weight:700; color:var(--cyan);">COGNIX (Epistemic Fusion)</div>
+        <div class="metric-row"><span class="metric-name">ECE (Calibration Error)</span><span class="metric-val val-better" id="cognix-ece">—</span></div>
+        <div class="metric-row"><span class="metric-name">Expected Accuracy</span><span class="metric-val val-better" id="cognix-acc">—</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DECISION -->
+  <section class="card card-decision">
+    <div class="card-title">🧠 System Decision</div>
+    <div class="decision-inner">
+      <div class="decision-badge ACT" id="decision-badge">—</div>
+      <div class="decision-meta">
+        <span class="risk-pill LOW" id="risk-pill">LOW RISK</span>
+        <div class="conf-label">Confidence <strong class="conf-value" id="conf-pct">—%</strong></div>
+        <div class="conf-track">
+          <div class="conf-fill" id="conf-bar" style="width:0%"></div>
+        </div>
+        <div style="margin-top:8px;font-size:0.68rem;color:var(--text-muted)">
+          Calibrated: <span id="calib-conf" style="color:var(--cyan);font-family:'JetBrains Mono',monospace">—%</span>
+          &nbsp;|&nbsp; Escalation: <span id="escalation-val" style="font-weight:700">—</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- UNCERTAINTY -->
+  <section class="card card-uncertainty">
+    <div class="card-title">📊 Uncertainty Profile</div>
+    <div class="unc-grid">
+      <div class="unc-block">
+        <div class="unc-label">Epistemic</div>
+        <div class="unc-val epistemic" id="epi-val">—</div>
+        <div class="unc-bar-track">
+          <div class="unc-bar-fill epistemic" id="epi-bar" style="width:0%"></div>
+        </div>
+        <div style="font-size:0.6rem;color:var(--text-muted);margin-top:6px">Model uncertainty</div>
+      </div>
+      <div class="unc-block">
+        <div class="unc-label">Aleatoric</div>
+        <div class="unc-val aleatoric" id="alea-val">—</div>
+        <div class="unc-bar-track">
+          <div class="unc-bar-fill aleatoric" id="alea-bar" style="width:0%"></div>
+        </div>
+        <div style="font-size:0.6rem;color:var(--text-muted);margin-top:6px">Data uncertainty</div>
+      </div>
+      <div class="unc-block">
+        <div class="unc-label">Total</div>
+        <div class="unc-val total" id="total-unc-val">—</div>
+        <div class="unc-bar-track">
+          <div class="unc-bar-fill total" id="total-unc-bar" style="width:0%"></div>
+        </div>
+        <div class="dominant-tag" id="dominant-tag">Dominant: <span id="dominant-src">—</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AGENTS -->
+  <section class="card card-agents">
+    <div class="card-title">🤖 Agent Trust & Health</div>
+    <div class="agent-list" id="agent-list">
+      <div style="color:var(--text-muted);font-size:0.8rem">Waiting for agents…</div>
+    </div>
+  </section>
+
+  <!-- FUSION -->
+  <section class="card card-fusion">
+    <div class="card-title">⚗️ Belief Fusion</div>
+    <div style="margin-bottom:8px">
+      <span class="strategy-pill" id="fusion-strategy">EPISTEMIC_WEIGHTED</span>
+    </div>
+    <div class="stat-pair">
+      <div class="stat-box">
+        <div class="stat-box-label">Fused</div>
+        <div class="stat-box-val" id="fused-conf-val">—%</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-box-label">Calibrated</div>
+        <div class="stat-box-val" id="calib-conf-val">—%</div>
+      </div>
+    </div>
+    <div style="margin-top:14px">
+      <div class="card-title" style="margin-bottom:8px">Top Agent</div>
+      <div style="font-size:0.85rem;font-weight:600;color:var(--cyan)" id="top-agent-val">—</div>
+    </div>
+  </section>
+
+  <!-- LATENCY -->
+  <section class="card card-latency">
+    <div class="card-title">⚡ Pipeline Latency</div>
+    <div class="latency-list" id="latency-list"></div>
+    <div class="total-latency">
+      <span class="total-latency-label">Total Pipeline</span>
+      <span class="total-latency-val" id="total-lat">— ms</span>
+    </div>
+  </section>
+
+  <!-- SHAPLEY ATTRIBUTION -->
+  <section class="card card-shapley">
+    <div class="card-title">🧩 Epistemic Shapley Attribution
+      <span style="font-size:0.58rem;color:var(--text-dim);text-transform:none;font-weight:400;margin-left:4px">(Proposed COGNIX mechanism)</span>
+    </div>
+    <div class="shapley-list" id="shapley-list">
+      <div style="color:var(--text-muted);font-size:0.8rem">Loading…</div>
+    </div>
+  </section>
+
+  <!-- HISTORY CHART -->
+  <section class="card card-history">
+    <div class="card-title">📈 Decision History</div>
+    <canvas id="history-canvas"></canvas>
+    <div class="history-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div> ACT</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--cyan)"></div> REQUEST INFO</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div> ABSTAIN</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div> ESCALATE</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--yellow)"></div> WAIT</div>
+    </div>
+  </section>
+
+  <!-- EXPLANATION -->
+  <section class="card card-explanation">
+    <div class="card-title">💬 Causal Explanation & Reasoning Steps</div>
+    <div class="explanation-body">
+      <p class="explanation-text" id="explanation-text">Waiting for COGNIX decision…</p>
+      <ol class="reasoning-list" id="reasoning-list"></ol>
+    </div>
+  </section>
+
+</main>
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   COGNIX DASHBOARD — CLIENT JS
+═══════════════════════════════════════════════════════ */
+
+const DECISION_COLORS = {
+  ACT: '#00e676', WAIT: '#ffd740',
+  REQUEST_INFORMATION: '#00d4ff',
+  ABSTAIN: '#ff9800', ESCALATE: '#ff3d71',
+};
+
+const LATENCY_KEYS = [
+  ['uncertainty', 'UQ Estimate'],
+  ['fusion',      'Belief Fusion'],
+  ['calibration', 'Calibration'],
+  ['decision',    'Decision'],
+  ['attribution', 'Attribution'],
+];
+
+// History ring buffer for chart
+const MAX_HIST = 50;
+const confHistory   = [];
+const decHistory    = [];
+
+/* ── Smooth lerp animation ─────────────────────────── */
+function lerpEl(el, targetNum, fmt, dur = 600) {
+  const start = parseFloat(el.dataset.cur || '0');
+  el.dataset.cur = targetNum;
+  const startTime = performance.now();
+  function step(now) {
+    const t = Math.min((now - startTime) / dur, 1);
+    const ease = t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+    const val = start + (targetNum - start) * ease;
+    el.textContent = fmt(val);
+    if (t < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+/* ── Flash update ──────────────────────────────────── */
+function flash(el) {
+  el.classList.remove('flash');
+  void el.offsetWidth;
+  el.classList.add('flash');
+}
+
+/* ── Latency colour ────────────────────────────────── */
+function latClass(ms) {
+  if (ms < 20) return 'fast';
+  if (ms < 60) return 'ok';
+  return 'slow';
+}
+
+/* ── Bar width (clamped %) ─────────────────────────── */
+function pct(v, max = 1) { return Math.min(100, Math.max(0, (v / max) * 100)).toFixed(1) + '%'; }
+
+/* ── Build latency rows ────────────────────────────── */
+function buildLatencyList(latData) {
+  const MAX_MS = 100;
+  return LATENCY_KEYS.map(([key, label]) => {
+    const ms = latData[key] ?? 0;
+    const cls = latClass(ms);
+    return `
+      <div class="latency-row">
+        <span class="latency-name">${label}</span>
+        <div class="latency-track">
+          <div class="latency-bar ${cls}" style="width:${pct(ms, MAX_MS)}"></div>
+        </div>
+        <span class="latency-ms">${ms.toFixed(2)}ms</span>
+      </div>`;
+  }).join('');
+}
+
+/* ── Build agent rows ──────────────────────────────── */
+function buildAgentList(agents) {
+  return agents.map(a => {
+    const healthCls = a.healthy ? 'healthy' : 'degraded';
+    const wPct = (a.weight * 100).toFixed(1);
+    return `
+      <div class="agent-row">
+        <div class="agent-icon">${a.icon}</div>
+        <div class="agent-info">
+          <div class="agent-name">${a.name}</div>
+          <div class="agent-label">${a.label} · Epi: ${a.epistemic.toFixed(3)}</div>
+        </div>
+        <div class="agent-trust-bar">
+          <div class="trust-pct">${wPct}%</div>
+          <div class="trust-track">
+            <div class="trust-fill" style="width:${wPct}%"></div>
+          </div>
+        </div>
+        <div class="health-dot ${healthCls}"></div>
+      </div>`;
+  }).join('');
+}
+
+/* ── Build Shapley rows ────────────────────────────── */
+function buildShapleyList(shapley) {
+  const entries = Object.entries(shapley);
+  const maxVal  = Math.max(...entries.map(e => e[1]), 0.001);
+  return entries
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, val]) => `
+      <div class="shapley-row">
+        <div class="shapley-agent">${name}</div>
+        <div class="shapley-track">
+          <div class="shapley-fill" style="width:${pct(val, maxVal)}"></div>
+        </div>
+        <div class="shapley-val">ϕ=${val.toFixed(4)}</div>
+      </div>`).join('');
+}
+
+/* ── Canvas history chart ──────────────────────────── */
+function drawHistory() {
+  const canvas = document.getElementById('history-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth;
+  const H = canvas.offsetHeight;
+  canvas.width  = W * devicePixelRatio;
+  canvas.height = H * devicePixelRatio;
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+
+  ctx.clearRect(0, 0, W, H);
+
+  if (confHistory.length < 2) return;
+
+  // Gradient background
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, 'rgba(108,99,255,0.08)');
+  bg.addColorStop(1, 'rgba(13,13,32,0)');
+
+  // Draw confidence line
+  const step = W / (MAX_HIST - 1);
+
+  // Fill area
+  ctx.beginPath();
+  confHistory.forEach((v, i) => {
+    const x = i * step;
+    const y = H - v * (H - 10) - 5;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.lineTo((confHistory.length - 1) * step, H);
+  ctx.lineTo(0, H);
+  ctx.closePath();
+  ctx.fillStyle = bg;
+  ctx.fill();
+
+  // Line
+  const grad = ctx.createLinearGradient(0, 0, W, 0);
+  grad.addColorStop(0, '#6c63ff');
+  grad.addColorStop(1, '#00d4ff');
+  ctx.beginPath();
+  confHistory.forEach((v, i) => {
+    const x = i * step;
+    const y = H - v * (H - 10) - 5;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+
+  // Decision dots
+  decHistory.forEach((dec, i) => {
+    const x = i * step;
+    const y = H - confHistory[i] * (H - 10) - 5;
+    const color = DECISION_COLORS[dec] || '#ffffff';
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  });
+
+  // Y-axis labels
+  ctx.fillStyle = 'rgba(112,112,160,0.6)';
+  ctx.font = `${10 * devicePixelRatio / devicePixelRatio}px Inter`;
+  ctx.fillText('1.0', 4, 14);
+  ctx.fillText('0.5', 4, H / 2 + 5);
+  ctx.fillText('0.0', 4, H - 4);
+}
+
+/* ══════════════════════════════════════════════════════
+   MAIN UPDATE FUNCTION
+══════════════════════════════════════════════════════ */
+function updateDashboard(d) {
+  // Header
+  document.getElementById('hdr-scenario').textContent = d.scenario;
+  document.getElementById('hdr-tick').textContent = `#${d.tick}`;
+
+  const latEl = document.getElementById('hdr-latency');
+  latEl.textContent = `${d.latency.total.toFixed(1)} ms`;
+  latEl.className = `latency-chip ${latClass(d.latency.total)}`;
+  
+  // Research Meta
+  if(d.research_meta) {
+      document.getElementById('meta-dataset').textContent = d.research_meta.dataset;
+      document.getElementById('meta-model').textContent = d.research_meta.model;
+      document.getElementById('meta-experiment').textContent = d.research_meta.experiment;
+      document.getElementById('meta-source').textContent = d.research_meta.data_source;
+      document.getElementById('meta-runid').textContent = d.research_meta.run_id;
+      document.getElementById('meta-seed').textContent = d.research_meta.seed;
+  }
+  
+  // Baselines
+  if(d.baselines) {
+      document.getElementById('base-ece').textContent = d.baselines.baseline_ece.toFixed(4);
+      document.getElementById('base-acc').textContent = (d.baselines.baseline_acc * 100).toFixed(1) + '%';
+      document.getElementById('cognix-ece').textContent = d.baselines.cognix_ece.toFixed(4);
+      document.getElementById('cognix-acc').textContent = (d.baselines.cognix_acc * 100).toFixed(1) + '%';
+  }
+
+  // Decision badge
+  const badge = document.getElementById('decision-badge');
+  badge.textContent = d.decision === 'REQUEST_INFORMATION' ? 'REQUEST INFO' : d.decision;
+  badge.className = `decision-badge ${d.decision}`;
+  flash(badge);
+
+  // Risk pill
+  const risk = document.getElementById('risk-pill');
+  risk.textContent = d.risk_level + ' RISK';
+  risk.className = `risk-pill ${d.risk_level}`;
+
+  // Confidence
+  const confPct = Math.round(d.confidence * 100);
+  lerpEl(document.getElementById('conf-pct'), confPct, v => Math.round(v) + '%');
+  document.getElementById('conf-bar').style.width = confPct + '%';
+  document.getElementById('calib-conf').textContent = Math.round(d.calibrated_confidence * 100) + '%';
+
+  // Escalation
+  const escEl = document.getElementById('escalation-val');
+  escEl.textContent = d.escalation ? 'YES' : 'NO';
+  escEl.style.color = d.escalation ? 'var(--red)' : 'var(--green)';
+
+  // Uncertainty
+  lerpEl(document.getElementById('epi-val'), d.epistemic, v => v.toFixed(3));
+  document.getElementById('epi-bar').style.width = pct(d.epistemic);
+
+  lerpEl(document.getElementById('alea-val'), d.aleatoric, v => v.toFixed(3));
+  document.getElementById('alea-bar').style.width = pct(d.aleatoric);
+
+  lerpEl(document.getElementById('total-unc-val'), d.total_unc, v => v.toFixed(3));
+  document.getElementById('total-unc-bar').style.width = pct(d.total_unc, 1.5);
+
+  document.getElementById('dominant-src').textContent = d.dominant_unc.toUpperCase();
+
+  // Agents
+  document.getElementById('agent-list').innerHTML = buildAgentList(d.agents);
+
+  // Fusion
+  document.getElementById('fused-conf-val').textContent = Math.round(d.confidence * 100) + '%';
+  document.getElementById('calib-conf-val').textContent = Math.round(d.calibrated_confidence * 100) + '%';
+  document.getElementById('top-agent-val').textContent = d.top_agent;
+
+  // Latency
+  document.getElementById('latency-list').innerHTML = buildLatencyList(d.latency);
+  document.getElementById('total-lat').textContent = d.latency.total.toFixed(2) + ' ms';
+
+  // Shapley
+  document.getElementById('shapley-list').innerHTML = buildShapleyList(d.shapley);
+
+  // History
+  confHistory.push(d.confidence);
+  decHistory.push(d.decision);
+  if (confHistory.length > MAX_HIST) { confHistory.shift(); decHistory.shift(); }
+  drawHistory();
+
+  // Explanation
+  document.getElementById('explanation-text').textContent = d.explanation;
+  document.getElementById('reasoning-list').innerHTML =
+    d.reasoning.map(s => `<li>${s}</li>`).join('');
+}
+
+/* ══════════════════════════════════════════════════════
+   WEBSOCKET
+══════════════════════════════════════════════════════ */
+let ws, reconnectTimer;
+
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws`);
+
+  ws.onopen = () => {
+    document.getElementById('live-dot').className  = 'live-dot';
+    document.getElementById('live-text').textContent = 'RUNNING';
+    clearTimeout(reconnectTimer);
+  };
+
+  ws.onclose = () => {
+    document.getElementById('live-dot').className  = 'live-dot offline';
+    document.getElementById('live-text').textContent = 'OFFLINE';
+    reconnectTimer = setTimeout(connect, 3000);
+  };
+
+  ws.onerror = () => ws.close();
+
+  ws.onmessage = ev => {
+    try { updateDashboard(JSON.parse(ev.data)); }
+    catch(e) { console.warn('Dashboard parse error:', e); }
+  };
+}
+
+/* ══════════════════════════════════════════════════════
+   BOOT
+══════════════════════════════════════════════════════ */
+window.addEventListener('load', () => {
+  // Fetch initial state immediately
+  fetch('/api/latest')
+    .then(r => r.json())
+    .then(updateDashboard)
+    .catch(() => {});
+
+  connect();
+});
+
+window.addEventListener('resize', drawHistory);
+</script>
+
+</body>
+</html>

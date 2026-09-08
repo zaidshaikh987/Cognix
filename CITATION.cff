@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: "Contributors"
+    given-names: "COGNIX"
+title: "COGNIX: A domain-agnostic, uncertainty-aware multi-agent AI decision framework"
+version: 0.1.0.dev0
+date-released: 2026-09-07
+url: "https://github.com/cognix-framework/cognix"

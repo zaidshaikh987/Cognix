@@ -1,0 +1,162 @@
+# Stub and Placeholder Audit
+
+- **.\cognix\cli.py:6** - Found pass: pass
+- **.\cognix\agents\adapters.py:26** - Found return 0: return 0.5  # Default intermediate uncertainty for plain callables
+- **.\cognix\agents\adapters.py:78** - Found return 0: return 0.5
+- **.\cognix\agents\adapters.py:125** - Found return 1: return 1.0 - pred.confidence
+- **.\cognix\agents\adapters.py:165** - Found return 1: return 1.0 - pred.confidence
+- **.\cognix\agents\base.py:44** - Found pass: pass
+- **.\cognix\agents\base.py:49** - Found pass: pass
+- **.\cognix\agents\base.py:54** - Found pass: pass
+- **.\cognix\agents\base.py:59** - Found pass: pass
+- **.\cognix\agents\base.py:64** - Found pass: pass
+- **.\cognix\agents\base.py:83** - Found return 1: return 1.0  # Maximum uncertainty
+- **.\cognix\belief\base.py:28** - Found pass: pass
+- **.\cognix\belief\bayesian.py:81** - Found NotImplementedError: raise NotImplementedError("Credible interval not implemented for multiclass")
+- **.\cognix\belief\bbn.py:38** - Found stub: # This is a conceptual stub for the BBN integration.
+- **.\cognix\belief\propagation.py:101** - Found placeholder: # Simplified placeholder for Bethe free energy computation.
+- **.\cognix\calibration\conformal.py:15** - Found Random: Reference: Vovk, V., Gammerman, A., & Shafer, G. (2005). Algorithmic Learning in a Random World. Springer.
+- **.\cognix\calibration\drift.py:65** - Found return 1: return 1.0
+- **.\cognix\communication\base.py:27** - Found pass: pass
+- **.\cognix\communication\base.py:31** - Found pass: pass
+- **.\cognix\compliance\eu_ai_act.py:24** - Found pass: iso_pass = latency < 100.0 and coverage >= 0.95
+- **.\cognix\compliance\eu_ai_act.py:25** - Found PASS: iso_status = "✅ PASS" if iso_pass else "❌ FAIL"
+- **.\cognix\compliance\eu_ai_act.py:28** - Found pass: eu_pass = ece < 0.10
+- **.\cognix\compliance\eu_ai_act.py:29** - Found PASS: eu_status = "✅ PASS" if eu_pass else "❌ FAIL"
+- **.\cognix\config\schema.py:68** - Found random: seed: int = Field(default=42, description="Global random seed")
+- **.\cognix\engine\decision_engine.py:44** - Found pass: "Or pass an UncertaintyEstimator instance directly."
+- **.\cognix\engine\decision_engine.py:237** - Found pass: pass
+- **.\cognix\engine\pipeline.py:53** - Found pass: All components are optional — pass None to skip a stage.
+- **.\cognix\engine\pipeline.py:380** - Found return 0: return 0.5
+- **.\cognix\engine\pipeline.py:401** - Found return 0: return 0.5
+- **.\cognix\engine\pipeline.py:409** - Found return 1: return 1.0
+- **.\cognix\engine\pipeline.py:516** - Found return 0: return 0.5
+- **.\cognix\engine\pipeline.py:533** - Found return 0: return 0.5
+- **.\cognix\explainability\causal.py:77** - Found pass: # Here we perform a simplified forward pass overriding with interventions.
+- **.\cognix\explainability\epistemic_shapley.py:16** - Found random: import random
+- **.\cognix\explainability\epistemic_shapley.py:32** - Found random: random.shuffle(permutation)
+- **.\cognix\explainability\lime_adapter.py:11** - Found pass: pass
+- **.\cognix\explainability\shap_adapter.py:11** - Found pass: pass
+- **.\cognix\explainability\shap_adapter.py:26** - Found Random: # For XGBoost, LightGBM, RandomForest, etc.
+- **.\cognix\graph\epistemic_gat.py:69** - Found pass: Forward pass with epistemic uncertainty.
+- **.\cognix\graph\gat.py:17** - Found random: self.W = np.random.uniform(-limit_W, limit_W, (in_features, out_features))
+- **.\cognix\graph\gat.py:20** - Found random: self.a = np.random.uniform(-limit_a, limit_a, (2 * out_features, 1))
+- **.\cognix\graph\gcn.py:16** - Found random: self.W = np.random.uniform(-limit, limit, (in_features, out_features))
+- **.\cognix\graph\gcn.py:20** - Found pass: Forward pass for GCN Layer.
+- **.\cognix\graph\gcn.py:52** - Found pass: Forward pass through the GCN network.
+- **.\cognix\marl\environment.py:10** - Found pass: pass
+- **.\cognix\marl\environment.py:44** - Found random: self.state = {agent: np.random.rand(4) for agent in self.agents}
+- **.\cognix\marl\environment.py:55** - Found random: self.state[agent][:2] += np.random.randn(2) * 0.1
+- **.\cognix\marl\environment.py:76** - Found pass: pass # PettingZoo compliance
+- **.\cognix\marl\maddpg.py:10** - Found pass: pass
+- **.\cognix\marl\qmix.py:10** - Found pass: pass
+- **.\cognix\metrics\communication.py:3** - Found return 0: return 0.0
+- **.\cognix\metrics\communication.py:4** - Found return 1: return 1.0 - (actual_messages / max_possible_messages)
+- **.\cognix\metrics\communication.py:15** - Found return 0: return 0.0
+- **.\cognix\metrics\evaluation.py:84** - Found return 0: return 0.0
+- **.\cognix\metrics\evaluation.py:117** - Found return 0: return 0.0
+- **.\cognix\models\bayesian.py:11** - Found pass: pass
+- **.\cognix\models\bayesian.py:49** - Found pass: Forward pass using the reparameterization trick.
+- **.\cognix\models\evidential.py:10** - Found pass: pass
+- **.\cognix\models\__init__.py:10** - Found pass: pass
+- **.\cognix\uncertainty\base.py:38** - Found pass: pass
+- **.\cognix\uncertainty\gmm.py:9** - Found pass: pass
+- **.\cognix\uncertainty\heteroscedastic.py:9** - Found pass: pass
+- **.\cognix\uncertainty\mc_dropout.py:25** - Found pass: pass
+- **.\cognix\utils\seeding.py:1** - Found random: """Reproducibility utilities — random seed management."""
+- **.\cognix\utils\seeding.py:2** - Found random: import random
+- **.\cognix\utils\seeding.py:7** - Found random: def set_random_seed(seed: int, torch_deterministic: bool = True) -> None:
+- **.\cognix\utils\seeding.py:8** - Found random: """Set random seeds for reproducibility across numpy, random, and optionally torch."""
+- **.\cognix\utils\seeding.py:9** - Found random: random.seed(seed)
+- **.\cognix\utils\seeding.py:10** - Found random: np.random.seed(seed)
+- **.\cognix\utils\seeding.py:20** - Found pass: pass
+- **.\cognix\utils\seeding.py:23** - Found random: def get_rng(seed: Optional[int] = None) -> np.random.Generator:
+- **.\cognix\utils\seeding.py:25** - Found random: return np.random.default_rng(seed)
+- **.\cognix\utils\__init__.py:3** - Found random: from cognix.utils.seeding import set_random_seed, get_rng
+- **.\cognix\utils\__init__.py:9** - Found random: "set_random_seed", "get_rng",
+- **.\dashboard\app.py:17** - Found random: import random
+- **.\dashboard\app.py:95** - Found demo: """Minimal real agent for dashboard demonstration."""
+- **.\dashboard\app.py:126** - Found math.sin: noise = 0.05 * math.sin(t * 0.3 + hash(self.name) % 10)
+- **.\dashboard\app.py:129** - Found random: conf = random.uniform(0.35, 0.55)
+- **.\dashboard\app.py:143** - Found math.sin: noise = 0.03 * math.sin(t * 0.2 + hash(self.name) % 7)
+- **.\dashboard\app.py:146** - Found random: epi = random.uniform(0.55, 0.75)
+- **.\examples\autonomous_vehicle\av_scenario.py:12** - Found Mock: class MockAgent:
+- **.\examples\autonomous_vehicle\av_scenario.py:48** - Found Mock: MockAgent("Camera", "BRAKE", 0.1),
+- **.\examples\autonomous_vehicle\av_scenario.py:49** - Found Mock: MockAgent("LiDAR", "BRAKE", 0.1),
+- **.\examples\autonomous_vehicle\av_scenario.py:50** - Found Mock: MockAgent("V2V", "BRAKE", 0.2),
+- **.\examples\autonomous_vehicle\av_scenario.py:51** - Found Mock: MockAgent("Map", "BRAKE", 0.05)
+- **.\examples\autonomous_vehicle\av_scenario.py:56** - Found Mock: MockAgent("Camera", "BRAKE", 0.85),
+- **.\examples\autonomous_vehicle\av_scenario.py:57** - Found Mock: MockAgent("LiDAR", "BRAKE", 0.1),
+- **.\examples\autonomous_vehicle\av_scenario.py:58** - Found Mock: MockAgent("V2V", "BRAKE", 0.2),
+- **.\examples\autonomous_vehicle\av_scenario.py:59** - Found Mock: MockAgent("Map", "BRAKE", 0.05)
+- **.\examples\autonomous_vehicle\av_scenario.py:64** - Found Mock: MockAgent("Camera", "GO", 0.2),
+- **.\examples\autonomous_vehicle\av_scenario.py:65** - Found Mock: MockAgent("LiDAR", "BRAKE", 0.1),
+- **.\examples\autonomous_vehicle\av_scenario.py:66** - Found Mock: MockAgent("V2V", "BRAKE", 0.2),
+- **.\examples\autonomous_vehicle\av_scenario.py:67** - Found Mock: MockAgent("Map", "BRAKE", 0.05)
+- **.\examples\autonomous_vehicle\av_scenario.py:72** - Found Mock: MockAgent("Camera", "WAIT", 0.9),
+- **.\examples\autonomous_vehicle\av_scenario.py:73** - Found Mock: MockAgent("LiDAR", "WAIT", 0.95),
+- **.\examples\autonomous_vehicle\av_scenario.py:74** - Found Mock: MockAgent("V2V", "WAIT", 0.85),
+- **.\examples\autonomous_vehicle\av_scenario.py:75** - Found Mock: MockAgent("Map", "WAIT", 0.82)
+- **.\examples\basic\hello_cognix.py:2** - Found demo: Hello COGNIX: Minimal example demonstrating the framework.
+- **.\examples\basic\hello_cognix.py:69** - Found demo: calibrator=None,           # Calibrator not fitted in this minimal demo
+- **.\examples\basic\hello_cognix.py:74** - Found synthetic: input_data = {"frame": "synthetic_intersection_image"}
+- **.\examples\classification\mnist_demo.py:2** - Found Demo: MNIST Demo (Simulated)
+- **.\examples\classification\mnist_demo.py:3** - Found Demo: Demonstration using sklearn to train models on random data,
+- **.\examples\classification\mnist_demo.py:7** - Found Random: from sklearn.ensemble import RandomForestClassifier
+- **.\examples\classification\mnist_demo.py:24** - Found random: return np.random.uniform(0.01, 0.05) # Simulated ECE
+- **.\examples\classification\mnist_demo.py:27** - Found synthetic: print("Generating synthetic 'MNIST-like' data...")
+- **.\examples\classification\mnist_demo.py:28** - Found random: X, y = make_classification(n_samples=1000, n_features=20, n_informative=15, n_classes=10, random_state=42)
+- **.\examples\classification\mnist_demo.py:30** - Found Random: print("Training 3 RandomForest models...")
+- **.\examples\classification\mnist_demo.py:33** - Found Random: rf = RandomForestClassifier(n_estimators=10, random_state=i)
+- **.\examples\multi_agent\disagreement_scenario.py:3** - Found Demo: Demonstrates how Cognix handles agent disagreement.
+- **.\examples\multi_agent\disagreement_scenario.py:14** - Found Mock: class MockAgent:
+- **.\examples\multi_agent\disagreement_scenario.py:36** - Found Mock: MockAgent("Agent_1", "Class_A", 0.2),
+- **.\examples\multi_agent\disagreement_scenario.py:37** - Found Mock: MockAgent("Agent_2", "Class_A", 0.3),
+- **.\examples\multi_agent\disagreement_scenario.py:38** - Found Mock: MockAgent("Agent_3", "Class_B", 0.1),
+- **.\examples\multi_agent\disagreement_scenario.py:39** - Found Mock: MockAgent("Agent_4", "Class_B", 0.15)
+- **.\experiments\uncertainty\run.py:5** - Found synthetic: on synthetic classification data.
+- **.\experiments\uncertainty\run.py:19** - Found random: X, y = make_classification(n_samples=1000, n_classes=2, random_state=42)
+- **.\experiments\uncertainty\run.py:21** - Found Mock: # Mock deep ensemble
+- **.\experiments\uncertainty\run.py:24** - Found random: mlp = MLPClassifier(hidden_layer_sizes=(10,), max_iter=200, random_state=i)
+- **.\robotics\toy_car\hardware.py:2** - Found demo: Hardware abstraction layer for toy autonomous car demonstrator.
+- **.\robotics\toy_car\hardware.py:10** - Found DEMO: This is a DEMONSTRATOR, not a research contribution.
+- **.\robotics\toy_car\hardware.py:16** - Found NotImplementedError: raise NotImplementedError
+- **.\robotics\toy_car\hardware.py:18** - Found NotImplementedError: raise NotImplementedError
+- **.\robotics\toy_car\hardware.py:20** - Found NotImplementedError: raise NotImplementedError
+- **.\robotics\toy_car\hardware.py:22** - Found NotImplementedError: raise NotImplementedError
+- **.\robotics\toy_car\hardware.py:24** - Found NotImplementedError: raise NotImplementedError
+- **.\robotics\toy_car\hardware.py:26** - Found NotImplementedError: raise NotImplementedError
+- **.\robotics\toy_car\hardware.py:58** - Found pass: pass
+- **.\simulation\synthetic\scenarios.py:2** - Found Synthetic: Synthetic simulation scenarios for COGNIX validation.
+- **.\tests\integration\test_pipeline.py:36** - Found Mock: class MockAgent:
+- **.\tests\integration\test_pipeline.py:46** - Found Mock: engine = DecisionEngine([MockAgent(1, 0.1), MockAgent(1, 0.2), MockAgent(1, 0.1)])
+- **.\tests\integration\test_pipeline.py:53** - Found Mock: engine = DecisionEngine([MockAgent(1, 0.9), MockAgent(1, 0.9)])
+- **.\tests\integration\test_pipeline.py:58** - Found Mock: engine = DecisionEngine([MockAgent(1, 0.1), MockAgent(2, 0.1)])
+- **.\tests\integration\test_pipeline.py:64** - Found Mock: engine = DecisionEngine([MockAgent(1, 0.1)])
+- **.\tests\regression\test_regression.py:5** - Found random: np.random.seed(42)
+- **.\tests\regression\test_regression.py:6** - Found random: val1 = np.random.rand()
+- **.\tests\regression\test_regression.py:7** - Found random: np.random.seed(42)
+- **.\tests\regression\test_regression.py:8** - Found random: val2 = np.random.rand()
+- **.\tests\regression\test_regression.py:12** - Found random: np.random.seed(42)
+- **.\tests\regression\test_regression.py:19** - Found random: np.random.seed(42)
+- **.\tests\regression\test_regression.py:20** - Found random: scores = np.random.rand(100)
+- **.\tests\unit\test_agents.py:8** - Found return 1: return 1.0
+- **.\tests\unit\test_agents.py:49** - Found Dummy: class DummySklearn:
+- **.\tests\unit\test_agents.py:52** - Found Dummy: adapter = SklearnAdapter(DummySklearn())
+- **.\tests\unit\test_agents.py:60** - Found return 0: return 0.1
+- **.\tests\unit\test_calibration.py:13** - Found return 0: return 0.0 if np.all(probs == labels) else 0.5
+- **.\tests\unit\test_calibration.py:17** - Found random: scores = np.random.rand(100)
+- **.\tests\unit\test_uncertainty.py:4** - Found mock: # We'll mock the core classes for the test to ensure they work based on the descriptions
+- **.\tests\unit\test_uncertainty.py:5** - Found Mock: class MockModel:
+- **.\tests\unit\test_uncertainty.py:48** - Found Mock: model = MockModel()
+- **.\tests\unit\test_uncertainty.py:50** - Found random: X = np.random.rand(5, 10)
+- **.\tests\unit\test_uncertainty.py:57** - Found Mock: model = MockModel()
+- **.\tests\unit\test_uncertainty.py:59** - Found random: X = np.random.rand(3, 5)
+- **.\tests\unit\test_uncertainty.py:68** - Found Mock: m1 = MockModel()
+- **.\tests\unit\test_uncertainty.py:69** - Found Mock: m2 = MockModel()
+- **.\tests\unit\test_uncertainty.py:71** - Found random: X = np.random.rand(4, 5)
+- **.\tests\unit\test_uncertainty.py:76** - Found Mock: model = MockModel()
+- **.\tests\unit\test_uncertainty.py:78** - Found random: X = np.random.rand(5, 10)
+- **.\tests\unit\test_uncertainty.py:84** - Found random: X = np.random.rand(10, 5)
+- **.\tests\unit\test_uncertainty.py:91** - Found Mock: class PerfectModel(MockModel):
+- **.\tests\unit\test_uncertainty.py:95** - Found random: X = np.random.rand(2, 5)

@@ -1,0 +1,49 @@
+# COGNIX Default Configuration
+# Override any field in experiment-specific configs
+
+uncertainty:
+  method: mc_dropout
+  mc_dropout_passes: 50
+  ensemble_size: 5
+  dropout_rate: 0.1
+  decompose: true
+  ood_detection: true
+  ood_method: mahalanobis
+
+fusion:
+  method: epistemic_weighted
+  eps: 1.0e-8
+
+calibration:
+  method: conformal
+  coverage_target: 0.95
+  temperature: 1.0
+
+communication:
+  method: top_k
+  top_k: 3
+  bandwidth_limit: null
+
+graph:
+  method: epistemic_gat
+  num_layers: 3
+  hidden_dim: 64
+  num_heads: 4
+
+attribution:
+  method: epistemic_shapley
+  num_samples: 100
+
+decision:
+  abstention: true
+  escalation: true
+  high_confidence_threshold: 0.70
+  low_confidence_threshold: 0.40
+  high_uncertainty_threshold: 0.50
+  max_escalation_steps: 3
+
+reproducibility:
+  seed: 42
+  deterministic: true
+
+log_level: INFO
