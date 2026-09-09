@@ -15,7 +15,8 @@ class AgentRegistry:
         """Register a new agent in the registry."""
         with self._lock:
             meta = agent.metadata()
-            self._agents[meta.agent_id] = agent
+            agent_id = meta.get("id") or meta.get("agent_id") or "unknown_agent"
+            self._agents[agent_id] = agent
 
     def unregister(self, agent_id: str) -> None:
         """Unregister an agent by its ID."""

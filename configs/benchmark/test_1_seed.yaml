@@ -1,0 +1,12 @@
+experiment_id: "test_1_seed"
+scenario_name: "OOD_SHIFT"
+seeds: [42]
+num_samples: 200
+num_agents: 4
+dataset: "synthetic"
+noise_level: 3.0
+ood_severity: 10.0
+graph_types: ["NoGraph", "StandardGAT", "EpistemicGAT"]
+fusion_type: "EpistemicWeighted"
+calibration_type: "Conformal"
+missing_agents: []

@@ -273,39 +273,45 @@ class EpistemicGAT(nn.Module, GraphRefinement):
         criterion = nn.BCELoss()
         losses = []
 
+        # Precompute agent outputs (since agents are frozen)
+        precomputed_nf = []
+        precomputed_ep = []
+        for x_i in X_train:
+            uncs_i = []
+            ep_dict = {}
+            for agent in sorted_agents:
+                p_res = agent.predict(x_i)
+                p = float(p_res.value) if hasattr(p_res, 'value') else float(p_res)
+                uq = agent.estimate_uncertainty(x_i)
+                uncs_i.append([p, uq.epistemic, uq.aleatoric])
+                ep_dict[agent.agent_id] = uq.epistemic
+            precomputed_nf.append(torch.tensor(uncs_i, dtype=torch.float32))
+            ep_np = self.compute_epistemic_weights(ep_dict, agent_ids)
+            precomputed_ep.append(torch.tensor(ep_np, dtype=torch.float32))
+
         self.train()
         for epoch in range(epochs):
             epoch_loss = 0.0
             perm = np.random.permutation(len(X_train))
 
             for idx in perm:
-                x_i = X_train[idx]
                 y_i = float(y_train[idx])
 
-                # Collect agent predictions + UQ (no grad here)
-                preds_i, uncs_i = [], []
-                ep_dict = {}
-                for agent in sorted_agents:
-                    # Use agent's public interface — no internal net access
-                    p_res = agent.predict(x_i)
-                    p = float(p_res.value) if hasattr(p_res, 'value') else float(p_res)
-                    uq = agent.estimate_uncertainty(x_i)
-                    preds_i.append(p)
-                    uncs_i.append([p, uq.epistemic, uq.aleatoric])
-                    ep_dict[agent.agent_id] = uq.epistemic
+                nf = precomputed_nf[idx]
+                ep_t = precomputed_ep[idx]
 
-                # Node features and epistemic prior
-                nf = torch.tensor(uncs_i, dtype=torch.float32)
-                ep_np = self.compute_epistemic_weights(ep_dict, agent_ids)
-                ep_t = torch.tensor(ep_np, dtype=torch.float32)
-
+                # Move tensors to device (if using GPU, usually CPU here)
+                nf = nf.to(next(self.parameters()).device)
+                ep_t = ep_t.to(next(self.parameters()).device)
+                A_t_device = A_t.to(next(self.parameters()).device)
+                
                 # Forward pass
                 self.train()
                 optimizer.zero_grad()
                 H = nf
                 for i_l, layer in enumerate(self.layers):
                     is_final = (i_l == len(self.layers) - 1)
-                    H, _ = layer(H, A_t, ep_t, final_layer=is_final)
+                    H, _ = layer(H, A_t_device, ep_t, final_layer=is_final)
 
                 # p_i_refined = sigmoid(H[i, 0])
                 # p_collective = mean over agents

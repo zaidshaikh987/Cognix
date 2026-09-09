@@ -207,9 +207,15 @@ def evaluation_fn(seed: int, config: BenchmarkConfig) -> Dict[str, Any]:
     epistemics = []
     aleatorics = []
     
+    import time
+    from cognix.metrics.evaluation import LatencyTracker
+    tracker = LatencyTracker()
+    
     for i in range(len(X_test)):
         x_i = X_test[i]
+        t0 = time.perf_counter()
         res = engine.decide(agents, x_i, agent_reliabilities=agent_reliabilities)
+        tracker.record("total", (time.perf_counter() - t0) * 1000)
         
         preds.append(res.confidence)
         epistemics.append(res.epistemic_uncertainty)
@@ -230,6 +236,7 @@ def evaluation_fn(seed: int, config: BenchmarkConfig) -> Dict[str, Any]:
         mean_set_size = float(np.mean([len(ps) for ps in all_pred_sets]))
         
     nll = -np.mean(y_test * np.log(preds + 1e-15) + (1 - y_test) * np.log(1 - preds + 1e-15))
+    lat_stats = tracker.get_percentiles("total")
         
     return {
         "accuracy": accuracy(preds, y_test),
@@ -240,10 +247,10 @@ def evaluation_fn(seed: int, config: BenchmarkConfig) -> Dict[str, Any]:
         "mean_aleatoric": float(np.mean(aleatorics)),
         "empirical_coverage": coverage if coverage else 0.0,
         "mean_set_size": mean_set_size,
-        "latency_ms": 0.0, # Will instrument later
+        "latency_ms": lat_stats["p50"],
         "escalation_rate": 0.0,
         "failure_conditions": [],
-        "metadata": {}
+        "metadata": {"latency_stats": lat_stats}
     }
 
 def main():
@@ -265,13 +272,16 @@ def main():
     csv_path = os.path.join(args.output_dir, f"{yaml_config['experiment_id']}_raw_results.csv")
     
     reporters = [JSONReporter(json_path), CSVReporter(csv_path)]
-    runner = BenchmarkRunner(reporters)
+    runner = BenchmarkRunner([])
     
     all_results = []
     for g_type in graph_types:
         cfg = BenchmarkConfig(graph_type=g_type, **yaml_config)
         results = runner.run(cfg, evaluation_fn)
         all_results.extend(results)
+        
+    for reporter in reporters:
+        reporter.report(all_results)
         
 if __name__ == "__main__":
     main()
