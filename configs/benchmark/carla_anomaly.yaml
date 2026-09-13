@@ -1,0 +1,17 @@
+name: "CarlAnomaly Integration Benchmark"
+data_mode: "synthetic"
+output_dir: "results/carla_anomaly"
+evaluation_runs: 10
+scenarios:
+  - NORMAL
+  - CAMERA_BLACKOUT
+  - GPS_DRIFT
+  - HEAVY_RAIN
+  - MULTI_FAILURE
+agents:
+  - Camera
+  - Depth
+  - LiDAR
+  - GNSS
+  - IMU
+  - Seg
