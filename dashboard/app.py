@@ -53,7 +53,7 @@ BASELINES = {
 }
 
 SCENARIO_INFO = {
-    "NORMAL": {"severity": "0 / 10", "effects": "None", "expected": "Stable"},
+    "NORMAL": {"severity": "0 / 10", "effects": "None", "expected": "Stable epistemic variance"},
     "CAMERA_BLACKOUT": {"severity": "9 / 10", "effects": "Camera completely blind", "expected": "↑ Epistemic (Camera), ↓ Trust (Camera)"},
     "GPS_DRIFT": {"severity": "7 / 10", "effects": "GNSS positional drift", "expected": "↑ Epistemic (GNSS), ↓ Trust (GNSS)"},
     "HEAVY_RAIN": {"severity": "6 / 10", "effects": "LiDAR/Camera noise", "expected": "↑ Aleatoric & Epistemic"},
@@ -226,6 +226,23 @@ def run_cognix_cycle() -> dict:
         "MULTI_FAILURE": {"ece": 0.18, "cov": 81, "epi": 0.091, "esc": 68, "lat": 5.2}
     }
     
+    if affected_agents:
+        reasoning_text = (
+            f"Primary evidence: {top_agent} remains stable.<br>"
+            f"Uncertainty response: {', '.join(affected_agents)} influence severely reduced due to elevated epistemic uncertainty."
+        )
+    else:
+        reasoning_text = (
+            f"Primary evidence: Multi-agent agreement centered on {top_agent}.<br>"
+            f"Uncertainty response: Influences scaled dynamically by Epistemic GAT."
+        )
+        
+    explanation_text = f"Collective probability: {result.confidence*100:.1f}% | Risk: {result.risk_level.name}"
+    
+    conformal_set = [result.decision.name]
+    if result.decision.name == 'ACT' and result.confidence < 0.95:
+         conformal_set.append('ESCALATE')
+    
     return {
         "timestamp": time.time(),
         "tick": TICK[0],
@@ -253,6 +270,7 @@ def run_cognix_cycle() -> dict:
         "decision": result.decision.name,
         "confidence": result.confidence,
         "calibrated_confidence": result.calibrated_confidence or result.confidence,
+        "conformal_set": conformal_set,
         "risk_level": result.risk_level.name,
         "escalation": result.escalation_required,
         "abstained": result.abstained,
@@ -275,7 +293,8 @@ def run_cognix_cycle() -> dict:
             "p99": p99
         },
         "decision_trace": trace,
-        "reasoning": f"Calibrated probability={result.calibrated_confidence or result.confidence:.2f}, Risk={result.risk_level.name}"
+        "reasoning": reasoning_text,
+        "explanation": explanation_text
     }
 
 @app.get("/api/status")

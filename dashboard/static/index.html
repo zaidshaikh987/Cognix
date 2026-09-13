@@ -208,7 +208,7 @@
     <div class="scenario-meta">
       <div>Severity: <span id="meta-sev">—</span></div>
       <div>Affected: <span id="meta-aff">—</span></div>
-      <div>Expected: <span id="meta-exp">—</span></div>
+      <div>Observed: <span id="meta-exp">—</span></div>
     </div>
   </section>
 
@@ -222,7 +222,7 @@
 
   <!-- COMPARISON -->
   <section class="card card-comparison">
-    <div class="card-title">SCENARIO COMPARISON (LIVE METRICS)</div>
+    <div class="card-title">LIVE SCENARIO MONITOR</div>
     <table class="comp-table">
       <thead>
         <tr>
@@ -241,7 +241,7 @@
 
   <!-- EPISTEMIC GRAPH -->
   <section class="card card-graph">
-    <div class="card-title">EPISTEMIC AGENT GRAPH <span style="font-size:0.6rem;font-weight:400;text-transform:none;color:var(--text-dim)">(Dynamic Attention Redistribution)</span></div>
+    <div class="card-title">EPISTEMIC AGENT GRAPH <span style="font-size:0.6rem;font-weight:400;text-transform:none;color:var(--text-dim)">(Edge = GAT attention weight)</span></div>
     <div class="graph-container" style="position:relative">
       <canvas id="graph-canvas" class="graph-edges"></canvas>
       <div class="graph-nodes" id="graph-nodes">
@@ -262,6 +262,7 @@
           <th>Agent</th>
           <th>Prediction</th>
           <th>Epistemic</th>
+          <th>Aleatoric</th>
           <th>Fusion Wt.</th>
         </tr>
       </thead>
@@ -280,8 +281,12 @@
         <div class="fus-stat-val" id="fus-coll">—</div>
       </div>
       <div class="fus-stat">
-        <div class="fus-stat-lbl">Calibrated Prob</div>
-        <div class="fus-stat-val" id="fus-calib">—</div>
+        <div class="fus-stat-lbl">Conformal Set</div>
+        <div class="fus-stat-val" id="fus-set" style="font-size:0.9rem">—</div>
+      </div>
+      <div class="fus-stat">
+        <div class="fus-stat-lbl">Set Size</div>
+        <div class="fus-stat-val" id="fus-set-size">—</div>
       </div>
     </div>
     <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:8px; font-weight:600">WEIGHT DISTRIBUTION</div>
@@ -312,8 +317,9 @@
     <div class="card-title">LIVE INFERENCE LATENCY</div>
     <div id="lat-rows"></div>
     <div class="lat-divider"></div>
-    <div class="lat-row"><span class="lat-name">Total Pipeline</span><span class="lat-total" id="lat-tot">—</span></div>
+    <div class="lat-row"><span class="lat-name">CURRENT TRACE</span><span class="lat-total" id="lat-tot">—</span></div>
     
+    <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; margin:12px 0 6px 0">LATENCY DISTRIBUTION</div>
     <div class="lat-percentiles">
       <div class="lat-pct"><div class="lat-pct-l">P50</div><div class="lat-pct-v" id="lat-p50">—</div></div>
       <div class="lat-pct"><div class="lat-pct-l">P95</div><div class="lat-pct-v" id="lat-p95">—</div></div>
@@ -339,7 +345,7 @@
 
   <!-- DECISION TRACE -->
   <section class="card card-trace">
-    <div class="card-title">DECISION TRACE / WHY?</div>
+    <div class="card-title">PIPELINE STATUS & REASONING</div>
     <div class="trace-container">
       <div class="trace-list" id="trace-list">
         <!-- JS -->
@@ -505,6 +511,7 @@ function updateDashboard(d) {
             <td style="font-weight:600; color:${a.healthy ? 'var(--text)' : 'var(--red)'}">${a.name}</td>
             <td class="font-mono">${n(a.prediction)}</td>
             <td class="font-mono" style="color:${a.healthy ? 'var(--purple)' : 'var(--red)'}">${n(a.epistemic)}</td>
+            <td class="font-mono" style="color:var(--orange)">${n(a.aleatoric)}</td>
             <td class="font-mono w-bar-container">
                 <span>${n(a.weight*100,1)}%</span>
                 <div class="w-bar-bg"><div class="w-bar-fill" style="width:${a.weight*100}%"></div></div>
@@ -514,7 +521,10 @@ function updateDashboard(d) {
     
     // Fusion
     document.getElementById('fus-coll').textContent = (d.confidence*100).toFixed(1) + "%";
-    document.getElementById('fus-calib').textContent = (d.calibrated_confidence*100).toFixed(1) + "%";
+    if (d.conformal_set) {
+        document.getElementById('fus-set').textContent = `{${d.conformal_set.join(', ')}}`;
+        document.getElementById('fus-set-size').textContent = d.conformal_set.length;
+    }
     
     const sortedAgents = [...d.agents].sort((a,b) => b.weight - a.weight);
     document.getElementById('fus-dist-list').innerHTML = sortedAgents.map(a => `
@@ -547,7 +557,7 @@ function updateDashboard(d) {
     }
     
     // Shapley
-    if(d.shapley) {
+    if(d.shapley && Object.keys(d.shapley).length > 0) {
         const sArr = Object.entries(d.shapley).sort((a,b) => Math.abs(b[1]) - Math.abs(a[1]));
         const maxS = Math.max(...sArr.map(x=>Math.abs(x[1])), 0.01);
         document.getElementById('shapley-list').innerHTML = sArr.map(([k,v]) => {
@@ -564,13 +574,20 @@ function updateDashboard(d) {
                 <div class="shapley-val" style="color:${clr}">${sign}${n(v, 4)}</div>
             </div>`;
         }).join('');
+    } else {
+        document.getElementById('shapley-list').innerHTML = `
+            <div style="padding: 20px 0; text-align: center; color: var(--text-dim); font-family: 'JetBrains Mono'; font-size: 0.75rem;">
+                STATUS<br><br>Awaiting attribution computation...
+            </div>
+        `;
     }
     
     // Trace
     if(d.decision_trace) {
         document.getElementById('trace-list').innerHTML = d.decision_trace.map(t => `<div class="done">${t}</div>`).join('');
     }
-    document.getElementById('trace-reasoning').innerHTML = d.reasoning + "<br><br>" + d.explanation;
+    
+    document.getElementById('trace-reasoning').innerHTML = (d.explanation || "") + "<br><br>" + (d.reasoning || "");
     
     // History
     historyData.push(d);
