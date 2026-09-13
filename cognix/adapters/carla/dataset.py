@@ -34,35 +34,34 @@ class CarlAnomalyDataset:
     def generate_frames(self, anomaly_type: str) -> list[CarlAnomalyFrame]:
         frames = []
         for t in range(self.n_frames):
-            # Base features: healthy
-            # feature format: [metric1, metric2]
-            rgb_f = np.array([0.5, 0.5]) + self.rng.normal(0, 0.02, 2)
-            depth_f = np.array([0.8, 0.0]) + self.rng.normal(0, 0.02, 2)
-            lidar_f = np.array([0.5, 0.0]) + self.rng.normal(0, 0.02, 2)
-            gnss_f = np.array([0.05, 0.0]) + self.rng.normal(0, 0.01, 2)
-            imu_f = np.array([0.05, 0.0]) + self.rng.normal(0, 0.01, 2)
-            seg_f = np.array([0.3, 0.0]) + self.rng.normal(0, 0.02, 2)
+            # Base features: healthy (increased noise for visual dynamics)
+            rgb_f = np.array([0.5, 0.5]) + self.rng.normal(0, 0.08, 2)
+            depth_f = np.array([0.8, 0.0]) + self.rng.normal(0, 0.07, 2)
+            lidar_f = np.array([0.5, 0.0]) + self.rng.normal(0, 0.08, 2)
+            gnss_f = np.array([0.05, 0.0]) + self.rng.normal(0, 0.06, 2)
+            imu_f = np.array([0.05, 0.0]) + self.rng.normal(0, 0.05, 2)
+            seg_f = np.array([0.3, 0.0]) + self.rng.normal(0, 0.09, 2)
             
             label = 0
             
-            # Apply anomalies
+            # Apply anomalies with HIGH variance to simulate erratic broken sensors
             if anomaly_type == "CAMERA_BLACKOUT":
-                # Camera variance goes to 0, brightness 0
-                rgb_f = np.array([0.0, 0.0])
+                # Totally erratic noise on camera
+                rgb_f = np.array([0.1, 0.1]) + self.rng.normal(0, 0.6, 2)
                 label = 1
             elif anomaly_type == "GPS_DRIFT":
-                # GNSS drift spikes
-                gnss_f = np.array([0.9, 0.0]) + self.rng.normal(0, 0.05, 2)
+                # GNSS drift spikes wildly
+                gnss_f = np.array([0.9, 0.0]) + self.rng.normal(0, 0.5, 2)
                 label = 1
             elif anomaly_type == "HEAVY_RAIN":
-                # Lidar density drops/spikes, Camera gets blurred/glare
-                lidar_f = np.array([0.1, 0.0]) + self.rng.normal(0, 0.05, 2)
-                rgb_f = np.array([0.85, 0.85]) + self.rng.normal(0, 0.05, 2) 
+                # Lidar and Camera get huge interference
+                lidar_f = np.array([0.2, 0.0]) + self.rng.normal(0, 0.45, 2)
+                rgb_f = np.array([0.85, 0.85]) + self.rng.normal(0, 0.5, 2) 
                 label = 1
             elif anomaly_type == "MULTI_FAILURE":
-                rgb_f = np.array([0.0, 0.0])
-                lidar_f = np.array([0.1, 0.0])
-                gnss_f = np.array([0.9, 0.0])
+                rgb_f = np.array([0.1, 0.1]) + self.rng.normal(0, 0.5, 2)
+                lidar_f = np.array([0.2, 0.0]) + self.rng.normal(0, 0.4, 2)
+                gnss_f = np.array([0.8, 0.0]) + self.rng.normal(0, 0.5, 2)
                 label = 1
                 
             frame = CarlAnomalyFrame(
