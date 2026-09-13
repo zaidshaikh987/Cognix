@@ -29,7 +29,7 @@ from cognix.adapters.carla.agents import CameraAgent, DepthAgent, LiDARAgent, GN
 # ── Global Engine State ──────────────────────────────────────────────────
 config = CognixConfig()
 engine = DecisionEngine(config)
-dataset = CarlAnomalyDataset(mode="synthetic", n_frames_per_anomaly=1000)
+dataset = CarlAnomalyDataset(mode="synthetic", n_frames_per_anomaly=1)
 agents = [
     CameraAgent(),
     DepthAgent(),
@@ -109,7 +109,7 @@ def run_cognix_cycle() -> dict:
     TICK[0] += 1
     
     # Generate 1 live frame for the current scenario
-    frames = dataset.generate_frames(CURRENT_SCENARIO_NAME, num_frames=1)
+    frames = dataset.generate_frames(CURRENT_SCENARIO_NAME)
     frame = frames[0]
     
     inputs = {
@@ -142,16 +142,22 @@ def run_cognix_cycle() -> dict:
     # Build agent payload
     agents_payload = []
     for agent in agents:
-        unc = result.uncertainties.get(agent.agent_id)
-        if unc:
-            ep = unc.epistemic
-            al = unc.aleatoric
-            tot = unc.total
-        else:
-            ep = al = tot = 0.0
+        unc = agent.estimate_uncertainty(inputs)
+        ep = unc.epistemic
+        al = unc.aleatoric
+        tot = unc.total
             
         weight = result.agent_trust_weights.get(agent.agent_id, 0.0)
-        pred = result.agent_predictions.get(agent.agent_id, 0.5)
+        pred_obj = result.agent_predictions.get(agent.agent_id, 0.5)
+        if hasattr(pred_obj, 'value'):
+            pred = float(pred_obj.value)
+        elif hasattr(pred_obj, 'prediction'):
+            pred = float(pred_obj.prediction)
+        else:
+            try:
+                pred = float(pred_obj)
+            except Exception:
+                pred = 0.5
         
         agents_payload.append({
             "name": agent.agent_id,
