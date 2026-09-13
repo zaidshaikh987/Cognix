@@ -12,8 +12,8 @@ class NoGraph(GraphRefinement):
     
     def forward(
         self,
-        node_features: np.ndarray,
-        adjacency_matrix: np.ndarray,
+        node_features,
+        adjacency_matrix,
         epistemic_uncertainties: dict[str, float],
         agent_order: list[str]
     ) -> GraphResult:
@@ -23,6 +23,10 @@ class NoGraph(GraphRefinement):
         # return LOGITS (not probabilities) to avoid a double-sigmoid.
         # logit(p) = log(p / (1 - p))  maps p -> logit space.
         # sigmoid(logit(p)) == p  (identity round-trip).
+        import torch
+        if isinstance(node_features, torch.Tensor):
+            node_features = node_features.detach().cpu().numpy()
+
         N = node_features.shape[0]
         probs = np.clip(node_features[:, 0], 1e-7, 1 - 1e-7)
         logits = np.log(probs / (1.0 - probs))          # logit transform

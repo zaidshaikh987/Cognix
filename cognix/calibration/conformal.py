@@ -37,20 +37,30 @@ class ConformalPredictor(Calibrator):
 
     def predict(self, test_outputs: np.ndarray, alpha: float = 0.05) -> list[ConformalPredictionSet]:
         """
-        Predict prediction sets for new examples.
-        test_outputs: (M, C) predicted probabilities
+        Produce prediction sets for new examples using split conformal prediction.
+
+        test_outputs : (M, C) predicted class probabilities
+
+        Coverage guarantee (Vovk et al.):
+            P(Y_test in C(X_test)) >= 1 - alpha
+        provided that cal and test scores are exchangeable.
+
+        Implementation: the quantile is taken over the AUGMENTED calibration
+        set {s_1, ..., s_n, +inf}, which has n+1 elements.
+        q_val = the ceil((n+1)(1-alpha))-th smallest value in the augmented set.
+        If that index exceeds n, q_val = +inf (include all classes).
         """
         if self.cal_scores is None:
             raise RuntimeError("Conformal predictor must be calibrated before prediction.")
-            
+
         M, C = test_outputs.shape
-        q_idx = int(np.ceil((self.n_cal + 1) * (1 - alpha)))
-        
-        # Handle edge cases for quantile index
-        if q_idx > self.n_cal:
-            q_val = 1.0 # Max possible score
-        else:
-            q_val = self.cal_scores[q_idx - 1]
+        # Augmented set: append +inf as the (n+1)-th score
+        augmented = np.append(self.cal_scores, np.inf)
+        n_aug = len(augmented)  # = n_cal + 1
+
+        q_idx = int(np.ceil(n_aug * (1 - alpha)))   # index into augmented set
+        q_idx = min(q_idx, n_aug)                    # clamp to valid range
+        q_val = float(np.sort(augmented)[q_idx - 1]) # 1-indexed → 0-indexed
             
         prediction_sets = []
         for i in range(M):
