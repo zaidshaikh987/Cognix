@@ -17,15 +17,20 @@ class NoGraph(GraphRefinement):
         epistemic_uncertainties: dict[str, float],
         agent_order: list[str]
     ) -> GraphResult:
-        
-        # Identity mapping: node_features[:, 0] is the base prediction
+
+        # node_features[:, 0] contains agent probabilities p_i in [0, 1].
+        # The pipeline applies sigmoid(H_prime[:, 0]) downstream, so we must
+        # return LOGITS (not probabilities) to avoid a double-sigmoid.
+        # logit(p) = log(p / (1 - p))  maps p -> logit space.
+        # sigmoid(logit(p)) == p  (identity round-trip).
         N = node_features.shape[0]
-        # Return in shape (N, 1) so it mimics H_prime[:, 0]
-        H_prime = node_features[:, 0].reshape(N, 1)
-        
-        # Attention is identity
+        probs = np.clip(node_features[:, 0], 1e-7, 1 - 1e-7)
+        logits = np.log(probs / (1.0 - probs))          # logit transform
+        H_prime = logits.reshape(N, 1).astype(np.float32)
+
+        # Attention is identity (no graph reasoning)
         attn = np.eye(N, dtype=np.float32)
-        
+
         return GraphResult(
             node_outputs=H_prime,
             attention=[attn],

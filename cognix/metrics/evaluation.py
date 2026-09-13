@@ -17,37 +17,53 @@ except ImportError:
 
 def calculate_ece(predictions: np.ndarray, ground_truths: np.ndarray, bins: int = 10, n_bins: int = None) -> float:
     """
-    Calculate Expected Calibration Error (ECE) for binary classification.
-    
-    ECE = sum_{m=1}^M (|B_m| / n) * |acc(B_m) - conf(B_m)|
-    Accepts both 'bins' and 'n_bins' as parameter name for compatibility.
+    Expected Calibration Error for binary classification (reliability-diagram definition).
+
+    ECE = sum_{m=1}^{M} (|B_m| / n) * |acc(B_m) - conf(B_m)|
+
+    Where:
+        conf(B_m) = mean predicted probability in bin m  (= mean p_hat)
+        acc(B_m)  = fraction of positives in bin m       (= mean y_true)
+
+    This is the standard definition from Guo et al. (2017) adapted for binary
+    classification.  It measures how well predicted probabilities correspond to
+    empirical positive rates.
+
+    NOTE: A previous version used max(p, 1-p) as confidence and round(p)==y as
+    accuracy.  Both were incorrect for the reliability-diagram formulation and
+    produced ECE = 0.5 for perfectly calibrated predictions.
+
+    Accepts both 'bins' and 'n_bins' for backward compatibility.
     """
     if n_bins is not None:
         bins = n_bins
+    predictions = np.asarray(predictions, dtype=np.float64)
+    ground_truths = np.asarray(ground_truths, dtype=np.float64)
     if len(predictions) == 0:
         return 0.0
-        
-    bin_boundaries = np.linspace(0, 1, bins + 1)
+
+    bin_boundaries = np.linspace(0.0, 1.0, bins + 1)
     ece = 0.0
-    
+
     for i in range(bins):
         lower = bin_boundaries[i]
-        upper = bin_boundaries[i+1]
-        
-        mask = (predictions >= lower) & (predictions <= (upper if i == bins-1 else upper - 1e-8))
+        upper = bin_boundaries[i + 1]
+        # Include right endpoint on last bin to catch p_hat == 1.0
+        if i < bins - 1:
+            mask = (predictions >= lower) & (predictions < upper)
+        else:
+            mask = (predictions >= lower) & (predictions <= upper)
+
         if np.any(mask):
-            bin_preds = predictions[mask]
+            bin_preds  = predictions[mask]
             bin_truths = ground_truths[mask]
-            
-            confidences = np.maximum(bin_preds, 1.0 - bin_preds)
-            accuracies = (np.round(bin_preds) == bin_truths).astype(float)
-            
-            avg_conf = np.mean(confidences)
-            avg_acc = np.mean(accuracies)
-            
+
+            avg_conf = float(np.mean(bin_preds))          # mean predicted probability
+            avg_acc  = float(np.mean(bin_truths))          # fraction of positives
+
             weight = len(bin_preds) / len(predictions)
-            ece += weight * np.abs(avg_acc - avg_conf)
-            
+            ece += weight * abs(avg_acc - avg_conf)
+
     return float(ece)
 
 # Alias for backwards compatibility and test imports
