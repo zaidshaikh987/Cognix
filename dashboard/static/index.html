@@ -399,7 +399,7 @@ function drawGraph(agents) {
         const weightRaw = a.weight;
         const lineWidth = Math.max(1, weightRaw * 15);
         ctx.lineWidth = lineWidth;
-        ctx.strokeStyle = a.healthy ? \`rgba(0, 212, 255, \${Math.max(0.2, weightRaw)})\` : \`rgba(239, 68, 68, \${Math.max(0.2, weightRaw)})\`;
+        ctx.strokeStyle = a.healthy ? `rgba(0, 212, 255, ${Math.max(0.2, weightRaw)})` : `rgba(239, 68, 68, ${Math.max(0.2, weightRaw)})`;
         ctx.stroke();
         
         // Draw weight text halfway
@@ -464,7 +464,7 @@ function drawHistory() {
 }
 
 function updateDashboard(d) {
-    document.getElementById('hdr-tick').textContent = \`#\${d.tick}\`;
+    document.getElementById('hdr-tick').textContent = `#${d.tick}`;
     const sel = document.getElementById('scenario-select');
     if (sel.value !== d.scenario && document.activeElement !== sel) sel.value = d.scenario;
     
@@ -488,42 +488,42 @@ function updateDashboard(d) {
     // Comparison Table
     if(d.comparison_table) {
         const t = d.comparison_table;
-        document.getElementById('comp-body').innerHTML = Object.keys(t).map(sc => \`
-            <tr class="\${sc === d.scenario ? 'active-col' : ''}">
-                <td>\${sc}</td>
-                <td>\${t[sc].ece.toFixed(3)}</td>
-                <td>\${t[sc].cov}%</td>
-                <td>\${t[sc].epi.toFixed(3)}</td>
-                <td>\${t[sc].esc}%</td>
+        document.getElementById('comp-body').innerHTML = Object.keys(t).map(sc => `
+            <tr class="${sc === d.scenario ? 'active-col' : ''}">
+                <td>${sc}</td>
+                <td>${t[sc].ece.toFixed(3)}</td>
+                <td>${t[sc].cov}%</td>
+                <td>${t[sc].epi.toFixed(3)}</td>
+                <td>${t[sc].esc}%</td>
             </tr>
-        \`).join('');
+        `).join('');
     }
     
     // Agent Evidence
-    document.getElementById('agent-body').innerHTML = d.agents.map(a => \`
+    document.getElementById('agent-body').innerHTML = d.agents.map(a => `
         <tr>
-            <td style="font-weight:600; color:\${a.healthy ? 'var(--text)' : 'var(--red)'}">\${a.name}</td>
-            <td class="font-mono">\${n(a.prediction)}</td>
-            <td class="font-mono" style="color:\${a.healthy ? 'var(--purple)' : 'var(--red)'}">\${n(a.epistemic)}</td>
+            <td style="font-weight:600; color:${a.healthy ? 'var(--text)' : 'var(--red)'}">${a.name}</td>
+            <td class="font-mono">${n(a.prediction)}</td>
+            <td class="font-mono" style="color:${a.healthy ? 'var(--purple)' : 'var(--red)'}">${n(a.epistemic)}</td>
             <td class="font-mono w-bar-container">
-                <span>\${n(a.weight*100,1)}%</span>
-                <div class="w-bar-bg"><div class="w-bar-fill" style="width:\${a.weight*100}%"></div></div>
+                <span>${n(a.weight*100,1)}%</span>
+                <div class="w-bar-bg"><div class="w-bar-fill" style="width:${a.weight*100}%"></div></div>
             </td>
         </tr>
-    \`).join('');
+    `).join('');
     
     // Fusion
     document.getElementById('fus-coll').textContent = (d.confidence*100).toFixed(1) + "%";
     document.getElementById('fus-calib').textContent = (d.calibrated_confidence*100).toFixed(1) + "%";
     
     const sortedAgents = [...d.agents].sort((a,b) => b.weight - a.weight);
-    document.getElementById('fus-dist-list').innerHTML = sortedAgents.map(a => \`
+    document.getElementById('fus-dist-list').innerHTML = sortedAgents.map(a => `
         <div class="fus-dist-row">
-            <div class="fus-dist-name" style="color:\${a.healthy?'var(--text)':'var(--red)'}">\${a.name}</div>
-            <div class="fus-dist-track"><div class="fus-dist-fill" style="width:\${a.weight*100}%"></div></div>
-            <div class="fus-dist-val">\${n(a.weight*100, 1)}%</div>
+            <div class="fus-dist-name" style="color:${a.healthy?'var(--text)':'var(--red)'}">${a.name}</div>
+            <div class="fus-dist-track"><div class="fus-dist-fill" style="width:${a.weight*100}%"></div></div>
+            <div class="fus-dist-val">${n(a.weight*100, 1)}%</div>
         </div>
-    \`).join('');
+    `).join('');
     
     // Uncertainty Profile
     document.getElementById('up-epi').textContent = n(d.epistemic);
@@ -535,9 +535,9 @@ function updateDashboard(d) {
     
     // Latency
     if(d.latency) {
-        document.getElementById('lat-rows').innerHTML = ['uncertainty','fusion','calibration','decision','attribution'].map(k => \`
-            <div class="lat-row"><span class="lat-name">\${k}</span><span>\${n(d.latency[k],2)} ms</span></div>
-        \`).join('');
+        document.getElementById('lat-rows').innerHTML = ['uncertainty','fusion','calibration','decision','attribution'].map(k => `
+            <div class="lat-row"><span class="lat-name">${k}</span><span>${n(d.latency[k],2)} ms</span></div>
+        `).join('');
         document.getElementById('lat-tot').textContent = n(d.latency.total, 2) + ' ms';
         if(d.latency.p50) {
             document.getElementById('lat-p50').textContent = n(d.latency.p50, 2) + ' ms';
@@ -555,20 +555,20 @@ function updateDashboard(d) {
             const w = (Math.abs(v)/maxS)*50;
             const clr = v < 0 ? 'var(--green)' : 'var(--red)';
             const sign = v > 0 ? '+' : '';
-            return \`
+            return `
             <div class="shapley-row">
-                <div class="shapley-name">\${k}</div>
+                <div class="shapley-name">${k}</div>
                 <div class="shapley-bar-c">
-                    <div class="shapley-bar" style="left:\${left}%; width:\${w}%; background:\${clr}"></div>
+                    <div class="shapley-bar" style="left:${left}%; width:${w}%; background:${clr}"></div>
                 </div>
-                <div class="shapley-val" style="color:\${clr}">\${sign}\${n(v, 4)}</div>
-            </div>\`;
+                <div class="shapley-val" style="color:${clr}">${sign}${n(v, 4)}</div>
+            </div>`;
         }).join('');
     }
     
     // Trace
     if(d.decision_trace) {
-        document.getElementById('trace-list').innerHTML = d.decision_trace.map(t => \`<div class="done">\${t}</div>\`).join('');
+        document.getElementById('trace-list').innerHTML = d.decision_trace.map(t => `<div class="done">${t}</div>`).join('');
     }
     document.getElementById('trace-reasoning').innerHTML = d.reasoning + "<br><br>" + d.explanation;
     
@@ -581,7 +581,7 @@ function updateDashboard(d) {
 let ws, reconnectTimer;
 function connect() {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    ws = new WebSocket(\`\${proto}://\${location.host}/ws\`);
+    ws = new WebSocket(`${proto}://${location.host}/ws`);
     ws.onopen = () => {
         document.getElementById('live-dot').className = 'live-dot';
         document.getElementById('live-text').textContent = 'LIVE SIMULATION';
