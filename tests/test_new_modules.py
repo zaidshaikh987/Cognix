@@ -1,6 +1,6 @@
 import sys
 import numpy as np
-from cognix.metrics.evaluation import expected_calibration_error, escalation_f1
+from cognix.metrics.evaluation import expected_calibration_error
 from cognix.belief.loopy_bp import LoopyBeliefPropagation
 from cognix.belief.base import BeliefState
 from cognix.communication.top_k import TopKCommunication

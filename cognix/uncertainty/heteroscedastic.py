@@ -2,11 +2,8 @@
 Heteroscedastic Loss for Aleatoric Uncertainty.
 Reference: Kendall & Gal (2017). What Uncertainties Do We Need in Bayesian Deep Learning?
 """
-try:
-    import torch
-    import torch.nn as nn
-except ImportError:
-    pass
+import torch
+import torch.nn as nn
 
 class HeteroscedasticLoss(nn.Module):
     """

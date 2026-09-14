@@ -97,7 +97,7 @@ class TwoStageConformalPredictor:
     def calibrate(self, agent_outputs: dict[str, np.ndarray], ensemble_outputs: np.ndarray, labels: np.ndarray):
         for agent_id, outputs in agent_outputs.items():
             cp = ConformalPredictor()
-            cp.calibrate(outputs, labels)
+            cp.fit(outputs, labels)
             self.individual_predictors[agent_id] = cp
             
-        self.ensemble_predictor.calibrate(ensemble_outputs, labels)
+        self.ensemble_predictor.fit(ensemble_outputs, labels)
