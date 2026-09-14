@@ -426,3 +426,106 @@ def test_module_status_recorded_in_trace():
     ms = result.metadata["module_status"]
     assert "uq" in ms, "UQ module status missing"
     assert ms["uq"]["executed"] is True
+
+
+# 22. Epistemic prior monotonic suppression (signed-logit regression test)
+def test_epistemic_gat_monotonic_suppression():
+    """
+    Epistemic prior must monotonically suppress attention to an agent as its
+    epistemic uncertainty increases:
+    attention(sigma=1.0) < attention(sigma=0.5) < attention(sigma=0.0).
+    """
+    torch.manual_seed(0)
+    np.random.seed(0)
+
+    gat = EpistemicGAT(num_layers=1, input_dim=3, hidden_dim=8, output_dim=4)
+    gat.eval()
+    N = 4
+    node_features = np.random.randn(N, 3).astype(np.float32)
+    adjacency = (np.ones((N, N)) - np.eye(N)).astype(np.float32)
+    agent_order = [f"Agent_{i}" for i in range(N)]
+
+    def compute_attention(sigma_agent_1: float) -> np.ndarray:
+        ep_unc = {
+            "Agent_0": 0.05,
+            "Agent_1": sigma_agent_1,
+            "Agent_2": 0.05,
+            "Agent_3": 0.05,
+        }
+        res = gat.forward(node_features, adjacency, ep_unc, agent_order)
+        return res.attention[-1]
+
+    attn_0 = compute_attention(0.0)
+    attn_5 = compute_attention(0.5)
+    attn_10 = compute_attention(1.0)
+
+    target_idx = 1
+    for receiver in range(N):
+        if receiver == target_idx:
+            continue
+        assert attn_10[receiver, target_idx] < attn_5[receiver, target_idx] < attn_0[receiver, target_idx], (
+            f"Receiver {receiver} did not monotonically suppress Agent_1: "
+            f"attn(1.0)={attn_10[receiver, target_idx]}, "
+            f"attn(0.5)={attn_5[receiver, target_idx]}, "
+            f"attn(0.0)={attn_0[receiver, target_idx]}"
+        )
+
+
+# 23. Zero-uncertainty identity test
+def test_epistemic_gat_zero_uncertainty_identity():
+    """
+    When all epistemic uncertainties are zero, EpistemicGAT with the prior
+    enabled must produce identical attention weights to an all-ones/no-prior control.
+    """
+    torch.manual_seed(42)
+    np.random.seed(42)
+
+    gat = EpistemicGAT(num_layers=2, input_dim=3, hidden_dim=8, output_dim=4)
+    gat.eval()
+    N = 4
+    node_features = np.random.randn(N, 3).astype(np.float32)
+    adjacency = (np.ones((N, N)) - np.eye(N)).astype(np.float32)
+    agent_order = [f"Agent_{i}" for i in range(N)]
+
+    epi_zero = {aid: 0.0 for aid in agent_order}
+    res_prior = gat.forward(node_features, adjacency, epi_zero, agent_order)
+
+    gat_ctrl = EpistemicGAT(num_layers=2, input_dim=3, hidden_dim=8, output_dim=4, use_epistemic_prior=False)
+    gat_ctrl.load_state_dict(gat.state_dict())
+    gat_ctrl.eval()
+    res_ctrl = gat_ctrl.forward(node_features, adjacency, epi_zero, agent_order)
+
+    for l_idx in range(len(res_prior.attention)):
+        assert np.allclose(res_prior.attention[l_idx], res_ctrl.attention[l_idx], atol=1e-6), (
+            f"Layer {l_idx} attention differed between prior(sigma=0) and no-prior control"
+        )
+
+
+# 24. Log-prior equivalence test
+def test_log_prior_softmax_equivalence():
+    """
+    Verify mathematically that softmax(logits + log(prior)) equals
+    (softmax(logits) * prior) followed by row renormalization,
+    even with negative logits.
+    """
+    logits = torch.tensor([
+        [-2.5,  0.8, -0.1,  1.4],
+        [-0.3, -1.8, -0.9, -0.4],
+        [ 1.2, -3.0,  0.0,  2.1],
+        [-1.0, -0.5, -2.0, -1.5],
+    ], dtype=torch.float32)
+
+    prior = torch.tensor([0.9, 0.5, 0.8, 0.6], dtype=torch.float32)
+
+    # Formulation A: additive log-prior before softmax
+    logits_shifted = logits + torch.log(prior).unsqueeze(0)
+    prob_a = torch.nn.functional.softmax(logits_shifted, dim=-1)
+
+    # Formulation B: post-softmax multiplicative weighting + row renormalization
+    prob_base = torch.nn.functional.softmax(logits, dim=-1)
+    unnorm_b = prob_base * prior.unsqueeze(0)
+    prob_b = unnorm_b / unnorm_b.sum(dim=-1, keepdim=True)
+
+    assert torch.allclose(prob_a, prob_b, atol=1e-6), (
+        f"Formulation A and Formulation B produced different probabilities: max diff {torch.max(torch.abs(prob_a - prob_b)).item()}"
+    )

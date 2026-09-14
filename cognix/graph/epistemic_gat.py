@@ -12,8 +12,8 @@ DESIGN INTENT:
 
 PROPOSED COGNIX MECHANISM:
     Attention prior: w_initial(j->i) = 1 / (1 + sigma_e_j)
-    This is multiplied element-wise into the standard GAT attention logits:
-        e_ij_epistemic = e_ij_standard * w_initial(j->i)
+    This acts as an additive log-prior on the standard GAT attention logits:
+        e_ij_epistemic = e_ij_standard + log(w_initial(j->i))
 
     Agents with high epistemic uncertainty exert less influence on neighbors.
     This is a proposed mechanism requiring experimental validation.
@@ -84,9 +84,9 @@ class EpistemicGATLayerPT(nn.Module):
         # Raw attention logits: e_ij = a^T [Wh_i || Wh_j]
         e = self.leaky_relu(self.a(pair).squeeze(-1))   # (N, N)
 
-        # COGNIX epistemic prior: bias attention of uncertain senders
-        # e_ij_epistemic = e_ij * (1/(1+sigma_e_j))
-        e_epistemic = e * epistemic_prior
+        # COGNIX epistemic prior: additive log-prior to suppress attention of uncertain senders
+        # e_ij_epistemic = e_ij + log(1/(1+sigma_e_j))
+        e_epistemic = e + torch.log(epistemic_prior)
 
         # Mask non-edges to large negative (no artificial +1 bias)
         mask = torch.where(A > 0, torch.zeros_like(e), torch.full_like(e, -1e9))
