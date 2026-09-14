@@ -1,6 +1,7 @@
 import argparse
 import yaml
 import numpy as np
+import random
 import sys
 import os
 import torch
@@ -130,6 +131,13 @@ def run_pre_calibration(agents, x, gat, fuser, config):
     return float(f_res.probability)
 
 def evaluation_fn(seed: int, config: BenchmarkConfig) -> Dict[str, Any]:
+    # 0. Deterministic Seeding for benchmark reproducibility
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
     # 1. Data Generation
     gen = DataGenerator(n_samples=config.num_samples, seed=seed)
     
@@ -175,10 +183,10 @@ def evaluation_fn(seed: int, config: BenchmarkConfig) -> Dict[str, Any]:
     
     if config.graph_type == "EpistemicGAT":
         gat = EpistemicGAT(input_dim=3, hidden_dim=8, output_dim=1)
-        gat.fit(agents, X_train, y_train)
+        gat.fit(agents, X_train, y_train, seed=seed)
     elif config.graph_type == "StandardGAT":
         gat = StandardGAT(input_dim=3, hidden_dim=8, output_dim=1)
-        gat.fit(agents, X_train, y_train)
+        gat.fit(agents, X_train, y_train, seed=seed)
     elif config.graph_type == "NoGraph":
         gat = NoGraph()
     else:
