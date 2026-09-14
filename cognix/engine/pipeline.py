@@ -166,7 +166,7 @@ class CognixPipeline:
                 # Node features: [p_i, sigma_e_i, sigma_a_i] — shape (N, 3)
                 node_features = np.array([
                     [
-                        float(self._extract_confidence(predictions[a])),
+                        float(self._extract_prediction_probability(predictions[a])),
                         float(uncertainties[a].get("epistemic", 0.0)),
                         float(uncertainties[a].get("aleatoric", 0.0)),
                     ]
@@ -638,7 +638,7 @@ class CognixPipeline:
         
         # Prepare inputs according to the new BeliefFuser interface
         pred_dict = {
-            agent_id: self._extract_confidence(pred)
+            agent_id: self._extract_prediction_probability(pred)
             for agent_id, pred in predictions.items()
         }
         
@@ -824,6 +824,24 @@ class CognixPipeline:
         if isinstance(pred, np.ndarray):
             return float(np.clip(np.max(pred), 0.0, 1.0))
         return 0.5
+
+    @staticmethod
+    def _extract_prediction_probability(pred: Any) -> float:
+        """Extract model prediction probability p_i in [0, 1] for GAT and belief fusion."""
+        if pred is None:
+            return 0.5
+        if isinstance(pred, (float, int, np.floating, np.integer)):
+            return float(np.clip(float(pred), 0.0, 1.0))
+        if hasattr(pred, "value") and isinstance(pred.value, (float, int, np.floating, np.integer)):
+            return float(np.clip(float(pred.value), 0.0, 1.0))
+        if isinstance(pred, dict):
+            if "prob" in pred and isinstance(pred["prob"], (float, int, np.floating, np.integer)):
+                return float(np.clip(float(pred["prob"]), 0.0, 1.0))
+            if "probabilities" in pred:
+                probs = np.array(pred["probabilities"])
+                if probs.ndim == 1 and len(probs) == 2:
+                    return float(np.clip(float(probs[1]), 0.0, 1.0))
+        return CognixPipeline._extract_confidence(pred)
 
     def _emergency_result(
         self, latencies: dict[str, float], pipeline_start: float

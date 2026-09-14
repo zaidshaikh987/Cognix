@@ -99,19 +99,24 @@ class HeterogeneousAgent(AgentInterface):
 def run_pre_calibration(agents, x, gat, fuser, config):
     agent_order = [a.agent_id for a in agents]
     preds = {}
-    uncs = {}
+    ep_uncs = {}
+    ale_uncs = {}
     for a in agents:
         preds[a.agent_id] = float(a.predict(x).value)
         u = a.estimate_uncertainty(x)
-        uncs[a.agent_id] = u.epistemic
+        ep_uncs[a.agent_id] = float(u.epistemic)
+        ale_uncs[a.agent_id] = float(u.aleatoric)
 
     nf = []
     for a in agents:
-        nf.append([preds[a.agent_id], uncs[a.agent_id], 0.0])
+        nf.append([preds[a.agent_id], ep_uncs[a.agent_id], ale_uncs[a.agent_id]])
     node_features = torch.tensor(nf, dtype=torch.float32)
-    adjacency = torch.ones((len(agents), len(agents)))
+
+    n_agents = len(agents)
+    adj_np = (np.ones((n_agents, n_agents)) - np.eye(n_agents)).astype(np.float32)
+    adjacency = torch.tensor(adj_np, dtype=torch.float32)
     
-    g_res = gat.forward(node_features, adjacency, uncs, agent_order)
+    g_res = gat.forward(node_features, adjacency, ep_uncs, agent_order)
     
     refined_preds = {}
     for i, a_id in enumerate(agent_order):
@@ -121,7 +126,7 @@ def run_pre_calibration(agents, x, gat, fuser, config):
         p_ref = 1.0 / (1.0 + math.exp(-val))
         refined_preds[a_id] = p_ref
         
-    f_res = fuser.fuse(predictions=refined_preds, uncertainties=uncs, reliabilities={})
+    f_res = fuser.fuse(predictions=refined_preds, uncertainties=ep_uncs, reliabilities={})
     return float(f_res.probability)
 
 def evaluation_fn(seed: int, config: BenchmarkConfig) -> Dict[str, Any]:
