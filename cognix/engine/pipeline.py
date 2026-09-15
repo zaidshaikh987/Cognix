@@ -670,16 +670,16 @@ class CognixPipeline:
         """
         Compute epistemic Shapley values using the COLLECTIVE value function.
 
-        v(S) = epistemic uncertainty of fused belief using only agents in S.
+        v(S) = collective epistemic uncertainty of subset S.
 
-        This correctly captures each agent's marginal contribution to collective
+        This captures each agent's marginal contribution to collective
         uncertainty reduction, satisfying the Shapley efficiency property:
             sum(phi_i) = v(all_agents) - v(empty_set)
         """
         agent_ids = list(uncertainties.keys())
 
         def v(subset: list[str]) -> float:
-            """Collective value function: run belief fusion on subset only."""
+            """Collective value function: collective epistemic uncertainty of subset."""
             if not subset:
                 return 1.0  # v(∅) = maximum uncertainty
             sub_preds = {k: predictions[k] for k in subset if k in predictions}
@@ -687,14 +687,10 @@ class CognixPipeline:
             if not sub_preds:
                 return 1.0
             sub_weights = self._compute_trust_weights(sub_unc)
-            try:
-                return self._run_belief_fusion(
-                    sub_preds, sub_unc, sub_weights,
-                    {k: 1.0 for k in subset}
-                )
-            except Exception:
-                # Use weighted mean as fallback for subset evaluation only
-                return self._aggregate_confidence(sub_preds, sub_unc, sub_weights)
+            _, agg_epistemic, _, _ = self._aggregate_uncertainty(
+                sub_preds, sub_unc, sub_weights
+            )
+            return agg_epistemic
 
         return self.attribution.compute(agent_ids, v)
 

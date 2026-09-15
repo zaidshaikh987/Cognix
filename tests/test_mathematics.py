@@ -529,3 +529,115 @@ def test_log_prior_softmax_equivalence():
     assert torch.allclose(prob_a, prob_b, atol=1e-6), (
         f"Formulation A and Formulation B produced different probabilities: max diff {torch.max(torch.abs(prob_a - prob_b)).item()}"
     )
+
+
+# 25. Pipeline Shapley semantic test (collective epistemic uncertainty vs fused probability)
+def test_pipeline_shapley_value_function_semantic():
+    """
+    Verify that _run_attribution's coalition value function v(S) evaluates to
+    collective epistemic uncertainty rather than fused prediction probability.
+    Expected to FAIL under current implementation because v(S) returns fused.probability.
+    """
+    fuser = EpistemicWeightedFusion()
+    pipe = CognixPipeline(belief_fuser=fuser, mode="production")
+
+    predictions = {
+        "a1": 0.90,
+        "a2": 0.80,
+    }
+    uncertainties = {
+        "a1": {"epistemic": 0.05, "aleatoric": 0.10},
+        "a2": {"epistemic": 0.15, "aleatoric": 0.10},
+    }
+    trust_weights = pipe._compute_trust_weights(uncertainties)
+
+    captured = {}
+    class SpyAttribution:
+        def compute(self, agents, value_fn):
+            captured["v"] = value_fn
+            return {a: 0.0 for a in agents}
+
+    pipe.attribution = SpyAttribution()
+    pipe._run_attribution(predictions, uncertainties, trust_weights)
+
+    assert "v" in captured, "Attribution value function was not passed to attribution.compute()"
+
+    # Known coalition S = ["a1", "a2"]
+    S = ["a1", "a2"]
+    sub_preds = {k: predictions[k] for k in S}
+    sub_unc = {k: uncertainties[k] for k in S}
+    sub_weights = pipe._compute_trust_weights(sub_unc)
+
+    # Expected collective epistemic uncertainty according to pipeline aggregation logic:
+    expected_collective_epistemic = pipe._aggregate_uncertainty(sub_preds, sub_unc, sub_weights)[1]
+
+    # Evaluate coalition value function
+    actual_v_S = captured["v"](S)
+
+    # Must equal collective epistemic uncertainty (~0.075), NOT fused prediction probability (~0.875)
+    assert actual_v_S == pytest.approx(expected_collective_epistemic, abs=1e-4), (
+        f"Semantic mismatch: v(S) evaluated to {actual_v_S:.4f} (fused prediction probability), "
+        f"expected {expected_collective_epistemic:.4f} (collective epistemic uncertainty)."
+    )
+
+
+# 26. Empty-coalition baseline test
+def test_pipeline_shapley_empty_coalition_baseline():
+    """
+    Verify the intended semantic contract:
+    v(empty) = 1.0 representing maximum epistemic uncertainty.
+    """
+    pipe = CognixPipeline(belief_fuser=EpistemicWeightedFusion(), mode="production")
+    predictions = {"a1": 0.8}
+    uncertainties = {"a1": {"epistemic": 0.1, "aleatoric": 0.05}}
+    trust_weights = pipe._compute_trust_weights(uncertainties)
+
+    captured = {}
+    class SpyAttribution:
+        def compute(self, agents, value_fn):
+            captured["v"] = value_fn
+            return {a: 0.0 for a in agents}
+
+    pipe.attribution = SpyAttribution()
+    pipe._run_attribution(predictions, uncertainties, trust_weights)
+
+    assert "v" in captured
+    v_empty = captured["v"]([])
+    assert v_empty == 1.0, f"Expected v(empty) == 1.0 (maximum uncertainty), got {v_empty}"
+
+
+# 27. Shapley uncertainty-direction test
+def test_shapley_uncertainty_reduction_direction():
+    """
+    Verify that under a true epistemic uncertainty value function:
+    - adding a low-uncertainty reliable agent reduces collective epistemic uncertainty,
+    - therefore its marginal Shapley contribution phi_i has the expected negative direction
+      (uncertainty reduction: phi_i = v(S U {i}) - v(S) < 0).
+    """
+    uncs = {"a_reliable": 0.05, "a_uncertain": 0.80}
+
+    def v_epistemic(subset: list[str]) -> float:
+        if not subset:
+            return 1.0  # empty set baseline = maximum epistemic uncertainty
+        # Trust-weighted harmonic aggregation (matching pipeline logic)
+        weights = {a: 1.0 / (uncs[a] + 1e-6) for a in subset}
+        total_w = sum(weights.values())
+        return float(sum((w / total_w) * uncs[a] for a, w in weights.items()))
+
+    es = EpistemicShapley()
+    phi = es.compute(["a_reliable", "a_uncertain"], v_epistemic)
+
+    # Reliable agent reduces collective uncertainty, so marginal contribution must be negative
+    assert phi["a_reliable"] < 0, (
+        f"Expected phi['a_reliable'] < 0 (uncertainty reduction), got {phi['a_reliable']}"
+    )
+    # Reliable agent must reduce uncertainty more than the uncertain agent
+    assert phi["a_reliable"] < phi["a_uncertain"], (
+        f"Expected phi['a_reliable'] ({phi['a_reliable']}) < phi['a_uncertain'] ({phi['a_uncertain']})"
+    )
+
+    # EpistemicShapley.interpret sorts ascending (most negative = top contributor to uncertainty reduction)
+    interp = es.interpret(phi)
+    assert interp["top_contributor"] == "a_reliable", (
+        f"Expected top_contributor to be 'a_reliable', got {interp['top_contributor']}"
+    )
