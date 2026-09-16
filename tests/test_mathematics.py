@@ -185,9 +185,9 @@ def test_escalation():
     res = engine.evaluate(confidence=0.9, epistemic_uncertainty=0.1, conformal_set_size=4)
     assert res.escalation == True, "Conformal set size >=3 must escalate"
     
-    # Test Shapley attribution logic
+    # Test Shapley attribution is informational and does not trigger escalation
     res = engine.evaluate(confidence=0.9, epistemic_uncertainty=0.1, conformal_set_size=1, max_shapley_value=0.5)
-    assert res.escalation == True, "Shapley > 0.4 must escalate"
+    assert res.escalation == False, "Shapley is explanation-only and must not trigger escalation"
     
     # Safe
     res = engine.evaluate(confidence=0.9, epistemic_uncertainty=0.1, conformal_set_size=1, max_shapley_value=0.1)
@@ -647,19 +647,17 @@ def test_shapley_uncertainty_reduction_direction():
 # ESCALATION SEMANTIC REGRESSION TESTS
 # ============================================================
 
-# 28. Legacy Shapley threshold documents existing behavior (to be removed)
-def test_escalation_legacy_shapley_threshold_documents_current_behavior():
+# 28. Shapley is explanation-only and does not trigger escalation
+def test_escalation_shapley_is_explanation_only_and_does_not_trigger():
     """
-    LEGACY BEHAVIOR DOCUMENTATION:
-    The current EscalationEngine.evaluate() triggers on max_shapley_value > 0.4
-    when a synthetic positive value of 0.5 is supplied.
-    This test documents the EXISTING behavior that is semantically incorrect
-    under the corrected epistemic Shapley convention, where:
-      - Negative phi = uncertainty reduction (correct, reliable agent)
-      - Positive phi = uncertainty increase (degraded agent, but tiny in practice)
-    Realistic pipeline-generated max(phi) values never approach +0.4.
-    This test PASSES currently, documenting behavior that should be removed.
+    Verify that EscalationEngine.evaluate() does not escalate on max_shapley_value.
+    Shapley attribution is explanation-only; an otherwise safe state
+    (confidence=0.9, epistemic_uncertainty=0.1, conformal_set_size=1) must NOT
+    escalate solely because max_shapley_value=0.5.
+    Existing non-Shapley escalation signals (conformal set size >= 3, low confidence,
+    high epistemic uncertainty) must remain intact.
     """
+    from cognix.decision.escalation import DecisionOutcome
     engine = EscalationEngine()
 
     # Existing confidence / epistemic / conformal escalation must be unchanged
@@ -672,19 +670,15 @@ def test_escalation_legacy_shapley_threshold_documents_current_behavior():
     res = engine.evaluate(confidence=0.9, epistemic_uncertainty=0.8, conformal_set_size=1)
     assert res.escalation == True, "High epistemic uncertainty must escalate"
 
-    # LEGACY SHAPLEY PATH: synthetic value 0.5 > 0.4 currently fires escalation
-    # Under corrected Shapley semantics (v(S) = collective epistemic uncertainty),
-    # no real pipeline agent produces max(phi) anywhere near +0.4.
-    res_legacy = engine.evaluate(
+    # Shapley is explanation-only: synthetic max_shapley_value=0.5 must NOT trigger escalation
+    res_shapley = engine.evaluate(
         confidence=0.9, epistemic_uncertainty=0.1, conformal_set_size=1,
         max_shapley_value=0.5
     )
-    # This assertion documents the legacy behavior — it currently PASSES.
-    # After removing the legacy Shapley branch, this trigger must be disabled.
-    assert res_legacy.escalation == True, (
-        "LEGACY BEHAVIOR DOCUMENTED: synthetic max_shapley_value=0.5 currently triggers "
-        "escalation via the > 0.4 rule. This rule is not supported by corrected Shapley scale."
+    assert res_shapley.escalation == False, (
+        "Shapley is explanation-only: max_shapley_value=0.5 must NOT trigger escalation."
     )
+    assert res_shapley.outcome == DecisionOutcome.ACT
 
 
 # 29. Pipeline escalation plumbing: EscalationEngine is invoked with correct signals

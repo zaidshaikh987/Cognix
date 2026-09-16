@@ -1,5 +1,5 @@
 """
-Decision Escalation Engine with Conformal and Shapley Support.
+Decision Escalation Engine with Conformal and Epistemic Support.
 """
 from enum import Enum
 from dataclasses import dataclass
@@ -27,7 +27,8 @@ class EscalationResult:
 class EscalationEngine:
     """
     Determines if a decision should be escalated to a human operator or higher-tier system.
-    Supports Point-estimate Confidence, Epistemic Uncertainty, Conformal Set Sizes, and Shapley Attribution.
+    Supports Point-estimate Confidence, Epistemic Uncertainty, and Conformal Set Sizes.
+    Shapley Attribution is informational (explanation-only).
     """
     def __init__(self, high_conf_thresh: float = 0.7, low_conf_thresh: float = 0.4, high_unc_thresh: float = 0.5):
         self.high_conf_thresh = high_conf_thresh
@@ -39,14 +40,16 @@ class EscalationEngine:
                  epistemic_uncertainty: float,
                  conformal_set_size: int = 1,
                  max_shapley_value: float = 0.0) -> EscalationResult:
-                 
+        """
+        Evaluate decision escalation conditions.
+
+        Note: max_shapley_value is retained for API backward compatibility,
+        but is informational and unused for decision gating (Shapley attribution
+        is explanation-only).
+        """
         # Conformal Prediction Thresholding
         if conformal_set_size >= 3:
             return EscalationResult(DecisionOutcome.ESCALATE, True, f"Conformal set size ({conformal_set_size}) exceeds safe limit.", RiskLevel.HIGH)
-            
-        # Shapley-Attributed Escalation
-        if max_shapley_value > 0.4:
-            return EscalationResult(DecisionOutcome.ESCALATE, True, f"Critical single-agent uncertainty attribution ({max_shapley_value:.2f}).", RiskLevel.HIGH)
             
         # Three-Tier Point Estimate Logic
         if confidence < self.low_conf_thresh or epistemic_uncertainty > self.high_unc_thresh:
