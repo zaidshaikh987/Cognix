@@ -641,3 +641,203 @@ def test_shapley_uncertainty_reduction_direction():
     assert interp["top_contributor"] == "a_reliable", (
         f"Expected top_contributor to be 'a_reliable', got {interp['top_contributor']}"
     )
+
+
+# ============================================================
+# ESCALATION SEMANTIC REGRESSION TESTS
+# ============================================================
+
+# 28. Legacy Shapley threshold documents existing behavior (to be removed)
+def test_escalation_legacy_shapley_threshold_documents_current_behavior():
+    """
+    LEGACY BEHAVIOR DOCUMENTATION:
+    The current EscalationEngine.evaluate() triggers on max_shapley_value > 0.4
+    when a synthetic positive value of 0.5 is supplied.
+    This test documents the EXISTING behavior that is semantically incorrect
+    under the corrected epistemic Shapley convention, where:
+      - Negative phi = uncertainty reduction (correct, reliable agent)
+      - Positive phi = uncertainty increase (degraded agent, but tiny in practice)
+    Realistic pipeline-generated max(phi) values never approach +0.4.
+    This test PASSES currently, documenting behavior that should be removed.
+    """
+    engine = EscalationEngine()
+
+    # Existing confidence / epistemic / conformal escalation must be unchanged
+    res = engine.evaluate(confidence=0.9, epistemic_uncertainty=0.1, conformal_set_size=4)
+    assert res.escalation == True, "Conformal set size >=3 must escalate"
+
+    res = engine.evaluate(confidence=0.2, epistemic_uncertainty=0.1, conformal_set_size=1)
+    assert res.escalation == True, "Low confidence must escalate"
+
+    res = engine.evaluate(confidence=0.9, epistemic_uncertainty=0.8, conformal_set_size=1)
+    assert res.escalation == True, "High epistemic uncertainty must escalate"
+
+    # LEGACY SHAPLEY PATH: synthetic value 0.5 > 0.4 currently fires escalation
+    # Under corrected Shapley semantics (v(S) = collective epistemic uncertainty),
+    # no real pipeline agent produces max(phi) anywhere near +0.4.
+    res_legacy = engine.evaluate(
+        confidence=0.9, epistemic_uncertainty=0.1, conformal_set_size=1,
+        max_shapley_value=0.5
+    )
+    # This assertion documents the legacy behavior — it currently PASSES.
+    # After removing the legacy Shapley branch, this trigger must be disabled.
+    assert res_legacy.escalation == True, (
+        "LEGACY BEHAVIOR DOCUMENTED: synthetic max_shapley_value=0.5 currently triggers "
+        "escalation via the > 0.4 rule. This rule is not supported by corrected Shapley scale."
+    )
+
+
+# 29. Pipeline escalation plumbing: EscalationEngine is invoked with correct signals
+def test_pipeline_escalation_engine_invoked():
+    """
+    Verify that an EscalationEngine attached to CognixPipeline is actually invoked
+    via .evaluate() with confidence, epistemic uncertainty, and conformal_set_size,
+    with max_shapley_value=0.0 (explanation-only).
+    """
+    from cognix.decision.escalation import EscalationEngine
+    from cognix.engine.result import DecisionOutcome
+
+    calls = []
+    class SpyEscalation(EscalationEngine):
+        def evaluate(self, confidence, epistemic_uncertainty, conformal_set_size=1, max_shapley_value=0.0):
+            calls.append({
+                "confidence": confidence,
+                "epistemic": epistemic_uncertainty,
+                "conformal_set_size": conformal_set_size,
+                "max_shapley_value": max_shapley_value,
+            })
+            return super().evaluate(confidence, epistemic_uncertainty, conformal_set_size, max_shapley_value)
+
+    engine = SpyEscalation()
+    pipe = CognixPipeline(
+        belief_fuser=EpistemicWeightedFusion(),
+        escalation=engine,
+        mode="production",
+    )
+    agents = [
+        _SimpleAgent("a1", 0.85, 0.05, 0.1),
+        _SimpleAgent("a2", 0.80, 0.08, 0.1),
+    ]
+    result = pipe.run(agents, np.array([1.0, 2.0, 3.0]), {})
+
+    assert len(calls) == 1, "EscalationEngine.evaluate() was not invoked by the pipeline"
+    call = calls[0]
+    assert call["max_shapley_value"] == 0.0, "Shapley must not participate in the decision (expected 0.0)"
+    assert call["conformal_set_size"] == 1, "Expected conformal_set_size=1 default when uncalibrated"
+    assert result.decision == DecisionOutcome.ACT
+    assert result.escalation_required is False
+
+
+# 30. Pipeline escalation triggers on low confidence, high epistemic, and conformal set size
+def test_pipeline_escalation_triggers_via_escalation_engine():
+    """
+    Verify that low-confidence, high-epistemic, and conformal set size >= 3
+    each trigger escalation through EscalationEngine.
+    """
+    from cognix.decision.escalation import EscalationEngine
+    from cognix.engine.result import DecisionOutcome
+
+    engine = EscalationEngine()
+
+    # 1. Low confidence -> ESCALATE
+    pipe_low_conf = CognixPipeline(
+        belief_fuser=EpistemicWeightedFusion(),
+        escalation=engine,
+        mode="production",
+    )
+    low_conf_agents = [
+        _SimpleAgent("a1", 0.2, 0.05, 0.1),
+        _SimpleAgent("a2", 0.3, 0.08, 0.1),
+    ]
+    res_low = pipe_low_conf.run(low_conf_agents, np.array([1.0, 2.0, 3.0]), {})
+    assert res_low.decision == DecisionOutcome.ESCALATE
+    assert res_low.escalation_required is True
+
+    # 2. High epistemic -> ESCALATE
+    pipe_high_unc = CognixPipeline(
+        belief_fuser=EpistemicWeightedFusion(),
+        escalation=engine,
+        mode="production",
+    )
+    high_unc_agents = [
+        _SimpleAgent("a1", 0.8, 0.8, 0.1),
+        _SimpleAgent("a2", 0.8, 0.9, 0.1),
+    ]
+    res_high = pipe_high_unc.run(high_unc_agents, np.array([1.0, 2.0, 3.0]), {})
+    assert res_high.decision == DecisionOutcome.ESCALATE
+    assert res_high.escalation_required is True
+
+    # 3. Conformal set size >= 3 -> ESCALATE
+    class MockLargeConformalPredictor:
+        cal_scores = np.array([0.1, 0.2])
+        n_cal = 100
+        def predict(self, cal_input, alpha=0.05):
+            class PS:
+                prediction_set = [0, 1, 2]  # size 3 >= 3
+                coverage_target = 0.95
+                quantile = 0.9
+            return [PS()]
+
+    pipe_conformal = CognixPipeline(
+        belief_fuser=EpistemicWeightedFusion(),
+        calibrator=MockLargeConformalPredictor(),
+        escalation=engine,
+        mode="production",
+    )
+    normal_agents = [
+        _SimpleAgent("a1", 0.85, 0.05, 0.1),
+        _SimpleAgent("a2", 0.80, 0.08, 0.1),
+    ]
+    res_conf = pipe_conformal.run(normal_agents, np.array([1.0, 2.0, 3.0]), {})
+    assert res_conf.decision == DecisionOutcome.ESCALATE
+    assert res_conf.escalation_required is True
+
+
+# 31. Shapley attribution remains available for explanation independently of decision
+def test_shapley_attribution_available_independent_of_escalation():
+    """
+    Verify that:
+    1. Shapley attribution is still computed after decision and remains available for explanation.
+    2. Shapley does NOT participate in the decision (does not trigger escalation).
+    3. Existing fallback behavior still works when no escalation engine is attached.
+    """
+    from cognix.decision.escalation import EscalationEngine
+    from cognix.engine.result import DecisionOutcome
+
+    # Pipeline with both EscalationEngine and EpistemicShapley
+    engine = EscalationEngine()
+    pipe = CognixPipeline(
+        belief_fuser=EpistemicWeightedFusion(),
+        attribution=EpistemicShapley(),
+        escalation=engine,
+        mode="production",
+    )
+    agents = [
+        _SimpleAgent("a_reliable", 0.85, 0.05, 0.1),
+        _SimpleAgent("a_uncertain", 0.80, 0.80, 0.1),
+    ]
+    res = pipe.run(agents, np.array([1.0, 2.0, 3.0]), {})
+
+    # Shapley attribution computed and available
+    assert isinstance(res.agent_contributions, dict)
+    assert len(res.agent_contributions) == 2
+    assert "a_reliable" in res.agent_contributions
+    assert "a_uncertain" in res.agent_contributions
+    # Reliable agent has lower (more negative) Shapley value
+    assert res.agent_contributions["a_reliable"] < res.agent_contributions["a_uncertain"]
+
+    # Decision was safe and did NOT escalate via Shapley
+    assert res.decision == DecisionOutcome.ACT
+    assert res.escalation_required is False
+
+    # Fallback behavior when no escalation engine is attached (escalation=None)
+    pipe_no_esc = CognixPipeline(
+        belief_fuser=EpistemicWeightedFusion(),
+        attribution=EpistemicShapley(),
+        escalation=None,
+        mode="production",
+    )
+    res_no_esc = pipe_no_esc.run(agents, np.array([1.0, 2.0, 3.0]), {})
+    assert res_no_esc.decision == DecisionOutcome.ACT
+    assert res_no_esc.escalation_required is False
+    assert len(res_no_esc.agent_contributions) == 2

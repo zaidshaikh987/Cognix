@@ -356,8 +356,13 @@ class CognixPipeline:
 
         # ── Step 10: Decision ─────────────────────────────────────────
         t = time.perf_counter()
+        conformal_set_size = (
+            len(calibration_info["prediction_set"])
+            if "prediction_set" in calibration_info and calibration_info["prediction_set"] is not None
+            else 1
+        )
         decision, escalation_required, abstained, requested_info = self._make_decision(
-            fused_confidence, agg_epistemic, risk_level
+            fused_confidence, agg_epistemic, risk_level, conformal_set_size=conformal_set_size
         )
         latencies["decision"] = _ms(t)
 
@@ -719,17 +724,36 @@ class CognixPipeline:
         confidence: float,
         epistemic: float,
         risk_level: RiskLevel,
+        conformal_set_size: int = 1,
     ) -> tuple[DecisionOutcome, bool, bool, bool]:
         """Map risk level + confidence to a final decision outcome."""
-        if self.escalation is not None and hasattr(self.escalation, "decide"):
+        if self.escalation is not None:
             try:
-                result = self.escalation.decide(confidence, epistemic, risk_level, {})
-                return (
-                    result.outcome,
-                    result.escalation_required,
-                    result.outcome == DecisionOutcome.ABSTAIN,
-                    result.outcome == DecisionOutcome.REQUEST_INFORMATION,
-                )
+                if hasattr(self.escalation, "evaluate"):
+                    result = self.escalation.evaluate(
+                        confidence=confidence,
+                        epistemic_uncertainty=epistemic,
+                        conformal_set_size=conformal_set_size,
+                        max_shapley_value=0.0,
+                    )
+                elif hasattr(self.escalation, "decide"):
+                    result = self.escalation.decide(confidence, epistemic, risk_level, {})
+                else:
+                    result = None
+
+                if result is not None:
+                    outcome = (
+                        DecisionOutcome(result.outcome.value)
+                        if hasattr(result.outcome, "value")
+                        else DecisionOutcome(str(result.outcome))
+                    )
+                    is_esc = bool(getattr(result, "escalation_required", getattr(result, "escalation", False)))
+                    return (
+                        outcome,
+                        is_esc,
+                        outcome == DecisionOutcome.ABSTAIN,
+                        outcome == DecisionOutcome.REQUEST_INFORMATION,
+                    )
             except Exception as exc:
                 logger.debug("Escalation engine failed: %s", exc)
 
