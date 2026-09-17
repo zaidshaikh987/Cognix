@@ -1289,6 +1289,12 @@ def main(smoke: bool = False):
     with open(RESULTS_DIR / "reliability_log.json", "w") as f:
         json.dump(_serialize(_reliability_log), f, indent=2)
 
+    try:
+        from report_generator import generate_report
+        generate_report()
+    except Exception as e:
+        print(f"Error generating final report: {e}")
+
     elapsed = time.time() - t_total_start
     print(f"\n{'='*70}")
     print(f"BENCHMARK COMPLETE in {elapsed/60:.1f} minutes")
