@@ -1,630 +1,408 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>COGNIX Live Framework</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&family=Outfit:wght@500;700&display=swap" rel="stylesheet">
-<style>
-    :root {
-      --bg: #09090b; --surface: #121217; --surface2: #1c1c24;
-      --border: #272730; --text: #f8f9fa; --text-muted: #a1a1aa; --text-dim: #71717a;
-      --cyan: #00d4ff; --purple: #8b5cf6; --green: #10b981; --red: #ef4444; --orange: #f59e0b;
-      --glow-cyan: rgba(0,212,255,0.15); --glow-purple: rgba(139,92,246,0.15);
-      --radius: 12px; --radius-sm: 8px; --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background-color: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; overflow-x: hidden; }
-    
-    /* SCROLLBAR */
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: var(--bg); }
-    ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 4px; }
-    
-    /* HEADER */
-    header {
-      background: rgba(18,18,23,0.8); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border);
-      padding: 16px 24px; position: sticky; top: 0; z-index: 100;
-      display: flex; justify-content: space-between; align-items: center;
-    }
-    .logo-container { display: flex; align-items: center; gap: 12px; }
-    .logo-text { font-family: 'Outfit', sans-serif; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px; }
-    .logo-badge { background: rgba(139,92,246,0.2); color: var(--purple); padding: 4px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; letter-spacing: 1px; }
-    
-    .hdr-metrics { display: flex; align-items: center; gap: 16px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; }
-    .hdr-pill { background: var(--surface2); padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border); }
-    .live-badge { display: flex; align-items: center; gap: 6px; color: var(--green); font-weight: 700; font-size: 0.75rem; letter-spacing: 1px; }
-    .live-dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; box-shadow: 0 0 8px var(--green); animation: pulse 1.5s infinite; }
-    .live-dot.offline { background: var(--red); box-shadow: none; animation: none; }
-    @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } 100% { opacity: 1; transform: scale(1); } }
-
-    /* LAYOUT */
-    .dashboard {
-      padding: 20px 24px 40px;
-      display: grid; gap: 16px; grid-template-columns: repeat(12, 1fr);
-      grid-template-areas:
-        "ctrl ctrl ctrl dec  dec  dec  comp comp comp comp comp comp"
-        "graf graf graf graf graf graf graf graf graf graf graf graf"
-        "agt  agt  agt  agt  agt  agt  fus  fus  fus  fus  fus  fus"
-        "unc  unc  unc  unc  unc  unc  lat  lat  lat  lat  lat  lat"
-        "shap shap shap shap shap shap hist hist hist hist hist hist"
-        "trac trac trac trac trac trac trac trac trac trac trac trac";
-    }
-    
-    .card {
-      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-      padding: 16px; position: relative; overflow: hidden;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-    }
-    .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: transparent; }
-    .card.glow-cyan::before { background: linear-gradient(90deg, transparent, var(--cyan), transparent); }
-    .card.glow-purple::before { background: linear-gradient(90deg, transparent, var(--purple), transparent); }
-    .card-title { font-family: 'Outfit', sans-serif; font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; display: flex; justify-content: space-between;}
-    
-    /* SCENARIO CONTROL */
-    .card-control { grid-area: ctrl; }
-    .scenario-select { width: 100%; background: var(--surface2); color: var(--cyan); border: 1px solid var(--border); padding: 10px; border-radius: var(--radius-sm); font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; font-weight: 700; cursor: pointer; outline: none; margin-bottom: 12px; }
-    .scenario-meta { font-size: 0.75rem; color: var(--text-dim); display: grid; gap: 6px; }
-    .scenario-meta span { color: var(--text); font-weight: 500; }
-    
-    /* DECISION */
-    .card-decision { grid-area: dec; display: flex; flex-direction: column; }
-    .dec-large { font-family: 'Outfit', sans-serif; font-size: 2.2rem; font-weight: 700; text-align: center; margin: 10px 0; color: var(--green); text-shadow: 0 0 20px rgba(16,185,129,0.3); }
-    .dec-sub { text-align: center; font-size: 0.8rem; color: var(--text-muted); }
-    .dec-risk { text-align: center; margin-top: 8px; font-weight: 700; letter-spacing: 1px; font-size: 0.7rem; padding: 4px; border-radius: 4px; background: rgba(255,255,255,0.05); }
-
-    /* COMPARISON */
-    .card-comparison { grid-area: comp; }
-    .comp-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: right; }
-    .comp-table th { color: var(--text-muted); font-weight: 600; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
-    .comp-table th:first-child, .comp-table td:first-child { text-align: left; }
-    .comp-table td { padding: 6px 0; font-family: 'JetBrains Mono', monospace; }
-    .comp-table .active-col { color: var(--cyan); font-weight: 700; background: rgba(0,212,255,0.05); }
-    
-    /* EPISTEMIC GRAPH */
-    .card-graph { grid-area: graf; min-height: 180px; }
-    .graph-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding-top: 20px;}
-    .graph-nodes { display: flex; justify-content: space-around; width: 100%; position: relative; z-index: 2; margin-bottom: 40px; }
-    .graph-node { background: var(--surface2); border: 1px solid var(--border); padding: 8px 12px; border-radius: 8px; text-align: center; min-width: 90px; }
-    .graph-node .n-name { font-weight: 700; font-size: 0.8rem; margin-bottom: 4px; }
-    .graph-node .n-epi { font-family: 'JetBrains Mono'; font-size: 0.7rem; color: var(--purple); }
-    .graph-node.degraded { border-color: var(--red); box-shadow: 0 0 10px rgba(239,68,68,0.2); }
-    .graph-node.degraded .n-epi { color: var(--red); font-weight: 700; }
-    .graph-fusion { background: rgba(0,212,255,0.1); border: 1px solid var(--cyan); padding: 10px 24px; border-radius: 20px; font-weight: 700; color: var(--cyan); position: relative; z-index: 2; box-shadow: 0 0 20px rgba(0,212,255,0.2); }
-    .graph-edges { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 1; }
-    
-    /* MULTI AGENT EVIDENCE */
-    .card-agents { grid-area: agt; }
-    .agent-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: right; }
-    .agent-table th { color: var(--text-muted); font-weight: 600; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
-    .agent-table th:first-child, .agent-table td:first-child { text-align: left; }
-    .agent-table td { padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.02); }
-    .agent-table .font-mono { font-family: 'JetBrains Mono', monospace; }
-    .agent-table .w-bar-container { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
-    .agent-table .w-bar-bg { width: 60px; height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
-    .agent-table .w-bar-fill { height: 100%; background: var(--cyan); transition: width 0.3s; }
-    
-    /* BELIEF FUSION */
-    .card-fusion { grid-area: fus; }
-    .fus-stats { display: flex; gap: 20px; margin-bottom: 16px; }
-    .fus-stat { flex: 1; background: var(--surface2); padding: 12px; border-radius: 8px; text-align: center; }
-    .fus-stat-lbl { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
-    .fus-stat-val { font-size: 1.2rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--cyan); }
-    .fus-dist { margin-top: 12px; }
-    .fus-dist-row { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; font-size: 0.75rem; }
-    .fus-dist-name { width: 60px; font-weight: 600; }
-    .fus-dist-track { flex: 1; height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
-    .fus-dist-fill { height: 100%; background: var(--cyan); transition: width 0.3s; }
-    .fus-dist-val { width: 45px; text-align: right; font-family: 'JetBrains Mono', monospace; color: var(--text-muted); }
-    
-    /* UNCERTAINTY PROFILE */
-    .card-unc { grid-area: unc; }
-    .unc-block { background: var(--surface2); padding: 12px; border-radius: 8px; margin-bottom: 8px; }
-    .unc-header { display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 6px; }
-    .unc-name { font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
-    .unc-num { font-family: 'JetBrains Mono', monospace; font-weight: 700; }
-    .unc-track { height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; }
-    .unc-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
-    .c-epi { color: var(--purple); } .bg-epi { background: var(--purple); }
-    .c-alea { color: var(--orange); } .bg-alea { background: var(--orange); }
-    .c-tot { color: var(--text); } .bg-tot { background: var(--text); }
-    
-    /* LATENCY */
-    .card-lat { grid-area: lat; }
-    .lat-row { display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 6px; font-family: 'JetBrains Mono', monospace; }
-    .lat-name { color: var(--text-muted); }
-    .lat-divider { height: 1px; background: var(--border); margin: 8px 0; }
-    .lat-total { font-weight: 700; color: var(--green); }
-    .lat-percentiles { display: flex; justify-content: space-between; margin-top: 12px; background: var(--surface2); padding: 8px; border-radius: 6px; }
-    .lat-pct { text-align: center; }
-    .lat-pct-l { font-size: 0.6rem; color: var(--text-dim); }
-    .lat-pct-v { font-size: 0.8rem; font-family: 'JetBrains Mono'; font-weight: 700; }
-    
-    /* SHAPLEY */
-    .card-shapley { grid-area: shap; }
-    .shapley-row { display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 8px; align-items: center; }
-    .shapley-name { width: 60px; font-weight: 600; }
-    .shapley-bar-c { flex: 1; height: 4px; background: var(--surface2); margin: 0 12px; position: relative; }
-    .shapley-bar { position: absolute; height: 100%; background: var(--purple); top: 0; left: 50%; transition: all 0.3s; }
-    .shapley-val { width: 60px; text-align: right; font-family: 'JetBrains Mono', monospace; }
-    
-    /* HISTORY */
-    .card-history { grid-area: hist; }
-    canvas { width: 100%; height: 160px; display: block; }
-    
-    /* DECISION TRACE */
-    .card-trace { grid-area: trac; }
-    .trace-container { display: flex; gap: 24px; }
-    .trace-list { flex: 1; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--text-muted); line-height: 1.6; }
-    .trace-list div { margin-bottom: 4px; }
-    .trace-list .done { color: var(--green); }
-    .trace-why { width: 300px; background: var(--surface2); padding: 16px; border-radius: 8px; }
-    .trace-why-title { font-size: 0.75rem; font-weight: 700; color: var(--cyan); margin-bottom: 8px; letter-spacing: 1px; }
-    .trace-why-text { font-size: 0.8rem; line-height: 1.5; color: var(--text); }
-    
-    @media (max-width: 1200px) {
-        .dashboard {
-            grid-template-areas:
-                "ctrl ctrl ctrl dec dec dec comp comp comp comp comp comp"
-                "graf graf graf graf graf graf graf graf graf graf graf graf"
-                "agt agt agt agt agt agt fus fus fus fus fus fus"
-                "unc unc unc unc unc unc lat lat lat lat lat lat"
-                "shap shap shap shap shap shap hist hist hist hist hist hist"
-                "trac trac trac trac trac trac trac trac trac trac trac trac";
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COGNIX Research Analytics Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #09090b; --surface: #121217; --surface2: #1c1c24;
+            --border: #272730; --text: #f8f9fa; --text-muted: #a1a1aa;
+            --cyan: #00d4ff; --purple: #8b5cf6; --green: #10b981; --red: #ef4444; --orange: #f59e0b;
+            --radius: 8px;
         }
-    }
-</style>
+        body {
+            background-color: var(--bg); color: var(--text);
+            font-family: 'Inter', sans-serif; margin: 0; padding: 0;
+        }
+        header {
+            background: rgba(18,18,23,0.9); padding: 20px 30px;
+            border-bottom: 1px solid var(--border); display: flex;
+            justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px);
+        }
+        .title h1 { margin: 0; font-size: 1.5rem; color: var(--cyan); }
+        .title p { margin: 5px 0 0 0; color: var(--text-muted); font-size: 0.9rem; }
+        .nav-links { display: flex; gap: 15px; }
+        .nav-links a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; padding: 5px 10px; border-radius: 5px; }
+        .nav-links a.active, .nav-links a:hover { background: var(--surface2); color: var(--text); }
+        .container { padding: 30px; max-width: 1400px; margin: 0 auto; }
+        
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+        .card h3 { margin-top: 0; color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; }
+        .kpi-val { font-size: 2rem; font-weight: 700; margin: 10px 0 5px; font-family: 'JetBrains Mono', monospace; }
+        
+        .chart-container { position: relative; height: 300px; width: 100%; margin-top: 20px; }
+        .chart-container-large { position: relative; height: 400px; width: 100%; margin-top: 20px; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.85rem; }
+        th, td { text-align: left; padding: 10px; border-bottom: 1px solid var(--border); }
+        th { color: var(--text-muted); }
+        
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+        .badge.completed { background: rgba(16,185,129,0.2); color: var(--green); }
+        .badge.pending { background: rgba(245,158,11,0.2); color: var(--orange); }
+        .badge.running { background: rgba(0,212,255,0.2); color: var(--cyan); }
+        
+        .section { display: none; }
+        .section.active { display: block; }
+        
+        .provenance { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--text-muted); margin-top: 40px; text-align: center; border-top: 1px solid var(--border); padding-top: 20px; }
+        
+        .alert { background: rgba(239,68,68,0.1); border-left: 4px solid var(--red); padding: 15px; margin-bottom: 20px; font-size: 0.9rem; }
+        .info { background: rgba(0,212,255,0.1); border-left: 4px solid var(--cyan); padding: 15px; margin-bottom: 20px; font-size: 0.9rem; }
+    </style>
 </head>
 <body>
 
 <header>
-  <div class="logo-container">
-    <div class="logo-text">COGNIX</div>
-    <div class="logo-badge">v0.2.0-LIVE</div>
-  </div>
-  <div class="hdr-metrics">
-    <div class="hdr-pill">Domain: <span style="color:var(--text)">Autonomous Driving</span></div>
-    <div class="hdr-pill">Data Mode: <span style="color:var(--cyan)">SYNTHETIC</span></div>
-    <div class="hdr-pill">Tick: <span id="hdr-tick" style="color:var(--purple)">#0</span></div>
-    <div class="live-badge">
-      <div class="live-dot" id="live-dot"></div>
-      <span id="live-text">LIVE SIMULATION</span>
+    <div class="title">
+        <h1>COGNIX</h1>
+        <p>Research Benchmark & Decision Analytics</p>
     </div>
-  </div>
+    <div class="nav-links" id="nav-links">
+        <a href="#overview" class="active" onclick="showSection('overview')">Overview</a>
+        <a href="#models" onclick="showSection('models')">Model Comparison</a>
+        <a href="#uncertainty" onclick="showSection('uncertainty')">Uncertainty & CP</a>
+        <a href="#communication" onclick="showSection('communication')">Communication</a>
+        <a href="#status" onclick="showSection('status')">Run Status</a>
+    </div>
 </header>
 
-<main class="dashboard">
+<div class="container">
+    <div id="loading" style="text-align: center; padding: 50px; color: var(--cyan);">Loading benchmark results...</div>
 
-  <!-- SCENARIO CONTROL -->
-  <section class="card card-control glow-cyan">
-    <div class="card-title">SCENARIO CONFIG</div>
-    <select id="scenario-select" class="scenario-select">
-      <option value="NORMAL">NORMAL</option>
-      <option value="CAMERA_BLACKOUT">CAMERA_BLACKOUT</option>
-      <option value="GPS_DRIFT">GPS_DRIFT</option>
-      <option value="HEAVY_RAIN">HEAVY_RAIN</option>
-      <option value="MULTI_FAILURE">MULTI_FAILURE</option>
-    </select>
-    <div class="scenario-meta">
-      <div>Severity: <span id="meta-sev">—</span></div>
-      <div>Affected: <span id="meta-aff">—</span></div>
-      <div>Observed: <span id="meta-exp">—</span></div>
-    </div>
-  </section>
-
-  <!-- DECISION -->
-  <section class="card card-decision glow-purple">
-    <div class="card-title">SYSTEM DECISION</div>
-    <div class="dec-large" id="dec-action">—</div>
-    <div class="dec-sub"><span id="dec-conf">—%</span> Calibrated Probability</div>
-    <div class="dec-risk" id="dec-risk">LOW RISK</div>
-  </section>
-
-  <!-- COMPARISON -->
-  <section class="card card-comparison">
-    <div class="card-title">LIVE SCENARIO MONITOR</div>
-    <table class="comp-table">
-      <thead>
-        <tr>
-          <th>Scenario</th>
-          <th>ECE</th>
-          <th>Coverage</th>
-          <th>Epistemic</th>
-          <th>Escalation</th>
-        </tr>
-      </thead>
-      <tbody id="comp-body">
-        <!-- Rendered by JS -->
-      </tbody>
-    </table>
-  </section>
-
-  <!-- EPISTEMIC GRAPH -->
-  <section class="card card-graph">
-    <div class="card-title">EPISTEMIC AGENT GRAPH <span style="font-size:0.6rem;font-weight:400;text-transform:none;color:var(--text-dim)">(Edge = GAT attention weight)</span></div>
-    <div class="graph-container" style="position:relative">
-      <canvas id="graph-canvas" class="graph-edges"></canvas>
-      <div class="graph-nodes" id="graph-nodes">
-        <!-- Rendered by JS -->
-      </div>
-      <div class="graph-fusion" id="graph-fusion-node">
-        BELIEF FUSION
-      </div>
-    </div>
-  </section>
-
-  <!-- MULTI AGENT EVIDENCE -->
-  <section class="card card-agents">
-    <div class="card-title">MULTI-AGENT EVIDENCE</div>
-    <table class="agent-table">
-      <thead>
-        <tr>
-          <th>Agent</th>
-          <th>Prediction</th>
-          <th>Epistemic</th>
-          <th>Aleatoric</th>
-          <th>Fusion Wt.</th>
-        </tr>
-      </thead>
-      <tbody id="agent-body">
-        <!-- JS -->
-      </tbody>
-    </table>
-  </section>
-
-  <!-- BELIEF FUSION -->
-  <section class="card card-fusion">
-    <div class="card-title">BELIEF FUSION <span style="font-size:0.65rem;font-weight:400;text-transform:none;margin-left:8px">(Epistemic Weighted)</span></div>
-    <div class="fus-stats">
-      <div class="fus-stat">
-        <div class="fus-stat-lbl">Collective Prob</div>
-        <div class="fus-stat-val" id="fus-coll">—</div>
-      </div>
-      <div class="fus-stat">
-        <div class="fus-stat-lbl">Conformal Set</div>
-        <div class="fus-stat-val" id="fus-set" style="font-size:0.9rem">—</div>
-      </div>
-      <div class="fus-stat">
-        <div class="fus-stat-lbl">Set Size</div>
-        <div class="fus-stat-val" id="fus-set-size">—</div>
-      </div>
-    </div>
-    <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:8px; font-weight:600">WEIGHT DISTRIBUTION</div>
-    <div id="fus-dist-list">
-      <!-- JS -->
-    </div>
-  </section>
-
-  <!-- UNCERTAINTY PROFILE -->
-  <section class="card card-unc">
-    <div class="card-title">UNCERTAINTY PROFILE</div>
-    <div class="unc-block">
-      <div class="unc-header"><span class="unc-name c-epi">Epistemic</span><span class="unc-num c-epi" id="up-epi">0.000</span></div>
-      <div class="unc-track"><div class="unc-fill bg-epi" id="up-epi-bar" style="width:0%"></div></div>
-    </div>
-    <div class="unc-block">
-      <div class="unc-header"><span class="unc-name c-alea">Aleatoric</span><span class="unc-num c-alea" id="up-alea">0.000</span></div>
-      <div class="unc-track"><div class="unc-fill bg-alea" id="up-alea-bar" style="width:0%"></div></div>
-    </div>
-    <div class="unc-block">
-      <div class="unc-header"><span class="unc-name c-tot">Total</span><span class="unc-num c-tot" id="up-tot">0.000</span></div>
-      <div class="unc-track"><div class="unc-fill bg-tot" id="up-tot-bar" style="width:0%"></div></div>
-    </div>
-  </section>
-
-  <!-- LATENCY -->
-  <section class="card card-lat">
-    <div class="card-title">LIVE INFERENCE LATENCY</div>
-    <div id="lat-rows"></div>
-    <div class="lat-divider"></div>
-    <div class="lat-row"><span class="lat-name">CURRENT TRACE</span><span class="lat-total" id="lat-tot">—</span></div>
-    
-    <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; margin:12px 0 6px 0">LATENCY DISTRIBUTION</div>
-    <div class="lat-percentiles">
-      <div class="lat-pct"><div class="lat-pct-l">P50</div><div class="lat-pct-v" id="lat-p50">—</div></div>
-      <div class="lat-pct"><div class="lat-pct-l">P95</div><div class="lat-pct-v" id="lat-p95">—</div></div>
-      <div class="lat-pct"><div class="lat-pct-l">P99</div><div class="lat-pct-v" id="lat-p99">—</div></div>
-    </div>
-  </section>
-
-  <!-- SHAPLEY -->
-  <section class="card card-shapley">
-    <div class="card-title">EPISTEMIC SHAPLEY ATTRIBUTION <span style="font-size:0.6rem;font-weight:400;text-transform:none;color:var(--text-dim)">(Proposed mechanism)</span></div>
-    <div style="font-size:0.65rem; color:var(--text-muted); margin-bottom:12px; display:flex; justify-content:space-between">
-      <span>Agent</span>
-      <span>Δ Collective Epistemic Uncertainty</span>
-    </div>
-    <div id="shapley-list"></div>
-  </section>
-
-  <!-- HISTORY -->
-  <section class="card card-history">
-    <div class="card-title">DECISION HISTORY <span style="font-size:0.65rem;font-weight:400;text-transform:none;margin-left:12px;color:var(--cyan)">— Confidence</span> <span style="font-size:0.65rem;font-weight:400;text-transform:none;margin-left:12px;color:var(--purple)">— Epistemic</span></div>
-    <canvas id="hist-canvas"></canvas>
-  </section>
-
-  <!-- DECISION TRACE -->
-  <section class="card card-trace">
-    <div class="card-title">PIPELINE STATUS & REASONING</div>
-    <div class="trace-container">
-      <div class="trace-list" id="trace-list">
-        <!-- JS -->
-      </div>
-      <div class="trace-why">
-        <div class="trace-why-title">WHY ACT?</div>
-        <div class="trace-why-text" id="trace-reasoning">
-          Waiting for pipeline data...
+    <!-- OVERVIEW SECTION -->
+    <div id="overview" class="section active">
+        <div class="info">
+            <strong>Data Source:</strong> Actual JSON results from <code>results/universal_evaluation/raw/</code>
         </div>
-      </div>
+        <div class="grid" id="kpi-grid">
+            <!-- Populated via JS -->
+        </div>
+        
+        <div class="card">
+            <h3>Scenario Coverage</h3>
+            <div class="chart-container" style="height: 250px;">
+                <canvas id="scenarioCoverageChart"></canvas>
+            </div>
+        </div>
     </div>
-  </section>
 
-</main>
+    <!-- MODEL COMPARISON SECTION -->
+    <div id="models" class="section">
+        <h2>Model Comparison (NORMAL Scenario)</h2>
+        <div class="grid">
+            <div class="card">
+                <h3>Accuracy & F1</h3>
+                <div class="chart-container"><canvas id="accChart"></canvas></div>
+            </div>
+            <div class="card">
+                <h3>Expected Calibration Error (ECE)</h3>
+                <div class="chart-container"><canvas id="eceChart"></canvas></div>
+            </div>
+            <div class="card">
+                <h3>Conformal Prediction</h3>
+                <div class="chart-container"><canvas id="cpChart"></canvas></div>
+            </div>
+            <div class="card">
+                <h3>Latency (ms)</h3>
+                <div class="chart-container"><canvas id="latencyChart"></canvas></div>
+            </div>
+        </div>
+        
+        <div class="card" style="margin-top: 20px;">
+            <h3>Statistical Significance (StandardGAT vs EpistemicGAT)</h3>
+            <table id="statsTable">
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>StandardGAT Mean</th>
+                        <th>EpistemicGAT Mean</th>
+                        <th>Wilcoxon p-value</th>
+                        <th>Adjusted p-value</th>
+                        <th>Significance</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- UNCERTAINTY & CP SECTION -->
+    <div id="uncertainty" class="section">
+        <h2>Uncertainty & Conformal Prediction Analytics</h2>
+        <div class="info">
+            "Epistemic uncertainty represents uncertainty associated with limited knowledge/model uncertainty. Aleatoric uncertainty represents inherent data noise."
+        </div>
+        <div class="grid">
+            <div class="card">
+                <h3>Mean Uncertainty (Epistemic vs Aleatoric)</h3>
+                <div class="chart-container"><canvas id="uncChart"></canvas></div>
+            </div>
+            <div class="card">
+                <h3>Error Detection AUROC</h3>
+                <div class="chart-container"><canvas id="aurocChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- COMMUNICATION SECTION -->
+    <div id="communication" class="section">
+        <h2>Communication Efficiency</h2>
+        <div class="alert">
+            <strong>IMPORTANT:</strong> Current Cognix architecture has NO communication pruning implemented.
+        </div>
+        
+        <div class="grid">
+            <div class="card">
+                <h3>Communication Pruning Status</h3>
+                <div class="kpi-val" style="color: var(--red);">NOT IMPLEMENTED</div>
+                <p>Reduction vs StandardGAT: <strong>0%</strong></p>
+            </div>
+            <div class="card">
+                <h3>Communication Bandwidth</h3>
+                <div class="kpi-val" style="color: var(--orange); font-size: 1.5rem;">THEORETICAL / IN-PROCESS</div>
+                <p>Cost formula: <code>N × (N-1) × feature_bytes</code></p>
+            </div>
+        </div>
+        
+        <div class="card" style="border-color: var(--purple);">
+            <h3>Future Research Direction</h3>
+            <p><strong>Uncertainty-aware pre-transmission communication pruning</strong> is a planned future extension.</p>
+            <p>Potential Target: <strong>~37% reduction</strong> (TARGET / FUTURE RESEARCH - NOT ACHIEVED)</p>
+        </div>
+    </div>
+
+    <!-- STATUS SECTION -->
+    <div id="status" class="section">
+        <h2>Run & Dataset Status</h2>
+        <div class="grid">
+            <div class="card">
+                <h3>Overall Progress</h3>
+                <div class="chart-container" style="height: 200px;"><canvas id="progressChart"></canvas></div>
+            </div>
+            <div class="card">
+                <h3>Scenario Status</h3>
+                <table id="scenarioTable">
+                    <thead><tr><th>Scenario</th><th>Status</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="provenance" id="provenance"></div>
+</div>
 
 <script>
-const MAX_HIST = 50;
-const historyData = [];
-
-function pct(v, max=1) { return Math.min(100, Math.max(0, (v/max)*100)).toFixed(1) + '%'; }
-function n(v, fix=3) { return parseFloat(v).toFixed(fix); }
-
-function drawGraph(agents) {
-    const container = document.getElementById('graph-nodes');
-    container.innerHTML = agents.map(a => `
-        <div class="graph-node ${a.healthy ? '' : 'degraded'}" id="node-${a.name}">
-            <div class="n-name">${a.name}</div>
-            <div class="n-epi">Ep=${a.epistemic.toFixed(3)}</div>
-        </div>
-    `).join('');
-    
-    // Draw edges
-    const canvas = document.getElementById('graph-canvas');
-    const ctx = canvas.getContext('2d');
-    const rect = canvas.parentElement.getBoundingClientRect();
-    canvas.width = rect.width;
-    canvas.height = rect.height;
-    
-    const fusionNode = document.getElementById('graph-fusion-node').getBoundingClientRect();
-    const fusionX = fusionNode.left - rect.left + fusionNode.width/2;
-    const fusionY = fusionNode.top - rect.top;
-    
-    ctx.clearRect(0,0, canvas.width, canvas.height);
-    
-    agents.forEach(a => {
-        const nodeEl = document.getElementById(`node-${a.name}`);
-        if(!nodeEl) return;
-        const nRect = nodeEl.getBoundingClientRect();
-        const nX = nRect.left - rect.left + nRect.width/2;
-        const nY = nRect.bottom - rect.top;
-        
-        ctx.beginPath();
-        ctx.moveTo(nX, nY);
-        ctx.lineTo(fusionX, fusionY);
-        
-        // Edge weight mapping
-        const weightRaw = a.weight;
-        const lineWidth = Math.max(1, weightRaw * 15);
-        ctx.lineWidth = lineWidth;
-        ctx.strokeStyle = a.healthy ? `rgba(0, 212, 255, ${Math.max(0.2, weightRaw)})` : `rgba(239, 68, 68, ${Math.max(0.2, weightRaw)})`;
-        ctx.stroke();
-        
-        // Draw weight text halfway
-        const midX = (nX + fusionX)/2;
-        const midY = (nY + fusionY)/2;
-        ctx.fillStyle = 'rgba(255,255,255,0.8)';
-        ctx.font = '10px JetBrains Mono';
-        ctx.textAlign = 'center';
-        ctx.fillText(n(weightRaw, 2), midX, midY - 5);
-    });
-}
-
-function drawHistory() {
-    const canvas = document.getElementById('hist-canvas');
-    const ctx = canvas.getContext('2d');
-    const W = canvas.offsetWidth;
-    const H = canvas.offsetHeight;
-    canvas.width = W * devicePixelRatio;
-    canvas.height = H * devicePixelRatio;
-    ctx.scale(devicePixelRatio, devicePixelRatio);
-    
-    ctx.clearRect(0,0,W,H);
-    if(historyData.length < 2) return;
-    
-    const step = W / (MAX_HIST - 1);
-    
-    // Draw Scenario Change markers
-    ctx.font = '9px Inter';
-    historyData.forEach((d, i) => {
-        if(i > 0 && d.scenario !== historyData[i-1].scenario) {
-            const x = i * step;
-            ctx.beginPath();
-            ctx.moveTo(x, 0); ctx.lineTo(x, H);
-            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-            ctx.lineWidth = 1; ctx.setLineDash([4,4]); ctx.stroke();
-            ctx.setLineDash([]);
-            
-            ctx.fillStyle = 'rgba(255,255,255,0.5)';
-            ctx.fillText(d.scenario, x + 4, 10);
-        }
-    });
-
-    // Draw Epistemic Line (Purple)
-    ctx.beginPath();
-    historyData.forEach((d, i) => {
-        const x = i * step;
-        const y = H - Math.min(1, d.epistemic * 5) * (H-20) - 10; // scale up epistemic for visibility
-        i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
-    });
-    ctx.strokeStyle = 'var(--purple)';
-    ctx.lineWidth = 2; ctx.stroke();
-    
-    // Draw Confidence Line (Cyan)
-    ctx.beginPath();
-    historyData.forEach((d, i) => {
-        const x = i * step;
-        const y = H - d.confidence * (H-20) - 10;
-        i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
-    });
-    ctx.strokeStyle = 'var(--cyan)';
-    ctx.lineWidth = 2; ctx.stroke();
-}
-
-function updateDashboard(d) {
-    document.getElementById('hdr-tick').textContent = `#${d.tick}`;
-    const sel = document.getElementById('scenario-select');
-    if (sel.value !== d.scenario && document.activeElement !== sel) sel.value = d.scenario;
-    
-    // Scenario Meta
-    if(d.scenario_details) {
-        document.getElementById('meta-sev').textContent = d.scenario_details.severity;
-        document.getElementById('meta-aff').textContent = d.scenario_details.affected;
-        document.getElementById('meta-exp').textContent = d.scenario_details.expected;
+    function showSection(id) {
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
+        document.querySelector(`.nav-links a[href="#${id}"]`).classList.add('active');
     }
-    
-    // Decision
-    const decEl = document.getElementById('dec-action');
-    decEl.textContent = d.decision;
-    decEl.style.color = d.decision === 'ESCALATE' ? 'var(--red)' : 'var(--green)';
-    document.getElementById('dec-conf').textContent = (d.calibrated_confidence * 100).toFixed(1);
-    document.getElementById('dec-risk').textContent = d.risk_level + " RISK";
-    
-    // Graph
-    drawGraph(d.agents);
-    
-    // Comparison Table
-    if(d.comparison_table) {
-        const t = d.comparison_table;
-        document.getElementById('comp-body').innerHTML = Object.keys(t).map(sc => `
-            <tr class="${sc === d.scenario ? 'active-col' : ''}">
-                <td>${sc}</td>
-                <td>${t[sc].ece.toFixed(3)}</td>
-                <td>${t[sc].cov}%</td>
-                <td>${t[sc].epi.toFixed(3)}</td>
-                <td>${t[sc].esc}%</td>
-            </tr>
-        `).join('');
-    }
-    
-    // Agent Evidence
-    document.getElementById('agent-body').innerHTML = d.agents.map(a => `
-        <tr>
-            <td style="font-weight:600; color:${a.healthy ? 'var(--text)' : 'var(--red)'}">${a.name}</td>
-            <td class="font-mono">${n(a.prediction)}</td>
-            <td class="font-mono" style="color:${a.healthy ? 'var(--purple)' : 'var(--red)'}">${n(a.epistemic)}</td>
-            <td class="font-mono" style="color:var(--orange)">${n(a.aleatoric)}</td>
-            <td class="font-mono w-bar-container">
-                <span>${n(a.weight*100,1)}%</span>
-                <div class="w-bar-bg"><div class="w-bar-fill" style="width:${a.weight*100}%"></div></div>
-            </td>
-        </tr>
-    `).join('');
-    
-    // Fusion
-    document.getElementById('fus-coll').textContent = (d.confidence*100).toFixed(1) + "%";
-    if (d.conformal_set) {
-        document.getElementById('fus-set').textContent = `{${d.conformal_set.join(', ')}}`;
-        document.getElementById('fus-set-size').textContent = d.conformal_set.length;
-    }
-    
-    const sortedAgents = [...d.agents].sort((a,b) => b.weight - a.weight);
-    document.getElementById('fus-dist-list').innerHTML = sortedAgents.map(a => `
-        <div class="fus-dist-row">
-            <div class="fus-dist-name" style="color:${a.healthy?'var(--text)':'var(--red)'}">${a.name}</div>
-            <div class="fus-dist-track"><div class="fus-dist-fill" style="width:${a.weight*100}%"></div></div>
-            <div class="fus-dist-val">${n(a.weight*100, 1)}%</div>
-        </div>
-    `).join('');
-    
-    // Uncertainty Profile
-    document.getElementById('up-epi').textContent = n(d.epistemic);
-    document.getElementById('up-epi-bar').style.width = pct(d.epistemic, 0.2); // max 0.2 for visual scale
-    document.getElementById('up-alea').textContent = n(d.aleatoric);
-    document.getElementById('up-alea-bar').style.width = pct(d.aleatoric, 0.2);
-    document.getElementById('up-tot').textContent = n(d.total_unc);
-    document.getElementById('up-tot-bar').style.width = pct(d.total_unc, 0.4);
-    
-    // Latency
-    if(d.latency) {
-        document.getElementById('lat-rows').innerHTML = ['uncertainty','fusion','calibration','decision','attribution'].map(k => `
-            <div class="lat-row"><span class="lat-name">${k}</span><span>${n(d.latency[k],2)} ms</span></div>
-        `).join('');
-        document.getElementById('lat-tot').textContent = n(d.latency.total, 2) + ' ms';
-        if(d.latency.p50) {
-            document.getElementById('lat-p50').textContent = n(d.latency.p50, 2) + ' ms';
-            document.getElementById('lat-p95').textContent = n(d.latency.p95, 2) + ' ms';
-            document.getElementById('lat-p99').textContent = n(d.latency.p99, 2) + ' ms';
+
+    async function fetchData() {
+        try {
+            const res = await fetch('/api/metrics');
+            const data = await res.json();
+            document.getElementById('loading').style.display = 'none';
+            renderDashboard(data);
+        } catch (e) {
+            document.getElementById('loading').innerText = "Error loading data. Make sure benchmark JSON exists.";
+            console.error(e);
         }
     }
-    
-    // Shapley
-    if(d.shapley && Object.keys(d.shapley).length > 0) {
-        const sArr = Object.entries(d.shapley).sort((a,b) => Math.abs(b[1]) - Math.abs(a[1]));
-        const maxS = Math.max(...sArr.map(x=>Math.abs(x[1])), 0.01);
-        document.getElementById('shapley-list').innerHTML = sArr.map(([k,v]) => {
-            const left = v < 0 ? (1 - Math.abs(v)/maxS)*50 : 50;
-            const w = (Math.abs(v)/maxS)*50;
-            const clr = v < 0 ? 'var(--green)' : 'var(--red)';
-            const sign = v > 0 ? '+' : '';
-            return `
-            <div class="shapley-row">
-                <div class="shapley-name">${k}</div>
-                <div class="shapley-bar-c">
-                    <div class="shapley-bar" style="left:${left}%; width:${w}%; background:${clr}"></div>
-                </div>
-                <div class="shapley-val" style="color:${clr}">${sign}${n(v, 4)}</div>
-            </div>`;
-        }).join('');
-    } else {
-        document.getElementById('shapley-list').innerHTML = `
-            <div style="padding: 20px 0; text-align: center; color: var(--text-dim); font-family: 'JetBrains Mono'; font-size: 0.75rem;">
-                STATUS<br><br>Awaiting attribution computation...
+
+    function renderDashboard(data) {
+        const summaries = data.summaries || {};
+        const normal = summaries["NORMAL"] || {};
+        const egat = normal["EpistemicGAT"] || {};
+        const sgat = normal["StandardGAT"] || {};
+        const nograph = normal["NoGraph"] || {};
+
+        // 1. Render KPIs
+        const kpiGrid = document.getElementById('kpi-grid');
+        const kpis = [
+            { label: 'Accuracy', val: egat.accuracy?.mean ? (egat.accuracy.mean * 100).toFixed(1) + '%' : 'N/A' },
+            { label: 'ECE', val: egat.ece?.mean ? egat.ece.mean.toFixed(3) : 'N/A' },
+            { label: 'F1 Score', val: egat.f1?.mean ? egat.f1.mean.toFixed(3) : 'N/A' },
+            { label: 'CP Coverage', val: egat.cp_coverage?.mean ? (egat.cp_coverage.mean * 100).toFixed(1) + '%' : 'N/A' },
+            { label: 'Mean Epistemic', val: egat.mean_epistemic?.mean ? egat.mean_epistemic.mean.toFixed(4) : 'N/A' },
+            { label: 'P50 Latency', val: egat.latency_p50?.mean ? egat.latency_p50.mean.toFixed(1) + 'ms' : 'N/A' }
+        ];
+        kpiGrid.innerHTML = kpis.map(k => `
+            <div class="card">
+                <h3>${k.label}</h3>
+                <div class="kpi-val">${k.val}</div>
             </div>
+        `).join('');
+
+        // 2. Charts Theme
+        Chart.defaults.color = '#a1a1aa';
+        Chart.defaults.font.family = 'Inter';
+
+        // 3. Model Comparison Charts
+        const models = ['NoGraph', 'StandardGAT', 'EpistemicGAT'];
+        const getMean = (model, metric) => normal[model]?.[metric]?.mean ?? 0;
+
+        new Chart(document.getElementById('accChart'), {
+            type: 'bar',
+            data: {
+                labels: models,
+                datasets: [{
+                    label: 'Accuracy',
+                    data: models.map(m => getMean(m, 'accuracy') * 100),
+                    backgroundColor: ['#3f3f46', '#8b5cf6', '#00d4ff']
+                }, {
+                    label: 'F1 Score',
+                    data: models.map(m => getMean(m, 'f1') * 100),
+                    backgroundColor: ['#27272a', '#6d28d9', '#0284c7']
+                }]
+            }
+        });
+
+        new Chart(document.getElementById('eceChart'), {
+            type: 'bar',
+            data: {
+                labels: models,
+                datasets: [{
+                    label: 'ECE (Lower is better)',
+                    data: models.map(m => getMean(m, 'ece')),
+                    backgroundColor: ['#ef4444', '#f59e0b', '#10b981']
+                }]
+            }
+        });
+
+        new Chart(document.getElementById('cpChart'), {
+            type: 'bar',
+            data: {
+                labels: models,
+                datasets: [{
+                    label: 'Coverage (%)',
+                    data: models.map(m => getMean(m, 'cp_coverage') * 100),
+                    backgroundColor: '#00d4ff'
+                }, {
+                    label: 'Mean Set Size',
+                    data: models.map(m => getMean(m, 'cp_set_size')),
+                    backgroundColor: '#8b5cf6'
+                }]
+            }
+        });
+        
+        new Chart(document.getElementById('latencyChart'), {
+            type: 'bar',
+            data: {
+                labels: models,
+                datasets: [{
+                    label: 'P50 Latency (ms)',
+                    data: models.map(m => normal[m]?.latency_p50?.mean || 0),
+                    backgroundColor: '#f59e0b'
+                }]
+            }
+        });
+
+        // 4. Uncertainty Charts
+        new Chart(document.getElementById('uncChart'), {
+            type: 'bar',
+            data: {
+                labels: models,
+                datasets: [{
+                    label: 'Mean Epistemic',
+                    data: models.map(m => getMean(m, 'mean_epistemic')),
+                    backgroundColor: '#8b5cf6'
+                }, {
+                    label: 'Mean Aleatoric',
+                    data: models.map(m => getMean(m, 'mean_aleatoric')),
+                    backgroundColor: '#3f3f46'
+                }]
+            }
+        });
+
+        new Chart(document.getElementById('aurocChart'), {
+            type: 'bar',
+            data: {
+                labels: models,
+                datasets: [{
+                    label: 'Error Detection AUROC',
+                    data: models.map(m => getMean(m, 'auroc_error_det')),
+                    backgroundColor: '#10b981'
+                }]
+            }
+        });
+
+        // 5. Run Status & Pie Charts
+        const status = data.status || {};
+        new Chart(document.getElementById('progressChart'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Completed', 'Pending'],
+                datasets: [{
+                    data: [status.completed_runs || 0, status.pending_runs || 0],
+                    backgroundColor: ['#10b981', '#3f3f46'],
+                    borderWidth: 0
+                }]
+            },
+            options: { maintainAspectRatio: false }
+        });
+        
+        let completedScen = 0, pendingScen = 0;
+        const scenTable = document.getElementById('scenarioTable').querySelector('tbody');
+        for (const [s, st] of Object.entries(status.scenarios || {})) {
+            if (st === 'COMPLETED') completedScen++; else pendingScen++;
+            scenTable.innerHTML += `<tr><td>${s}</td><td><span class="badge ${st.toLowerCase()}">${st}</span></td></tr>`;
+        }
+
+        new Chart(document.getElementById('scenarioCoverageChart'), {
+            type: 'pie',
+            data: {
+                labels: ['Completed Scenarios', 'Pending Scenarios'],
+                datasets: [{
+                    data: [completedScen, pendingScen],
+                    backgroundColor: ['#00d4ff', '#3f3f46'],
+                    borderWidth: 0
+                }]
+            },
+            options: { maintainAspectRatio: false }
+        });
+
+        // 6. Stats Table
+        const stats = data.stats || {};
+        const s_normal = stats["NORMAL"] || {};
+        const comp = s_normal["StandardGAT_vs_EpistemicGAT"] || {};
+        const tbody = document.getElementById('statsTable').querySelector('tbody');
+        
+        ['clf_accuracy', 'ece', 'clf_f1'].forEach(metric => {
+            if (comp[metric]) {
+                const s_val = sgat[metric.replace('clf_', '')]?.mean || 'N/A';
+                const e_val = egat[metric.replace('clf_', '')]?.mean || 'N/A';
+                const pval = comp[metric].p_value_wilcoxon || 1.0;
+                const sig = pval < 0.05 ? '<span style="color:var(--green)">Statistically Significant</span>' : 'Not Significant';
+                tbody.innerHTML += `<tr>
+                    <td>${metric}</td>
+                    <td>${typeof s_val === 'number' ? s_val.toFixed(4) : s_val}</td>
+                    <td>${typeof e_val === 'number' ? e_val.toFixed(4) : e_val}</td>
+                    <td>${pval.toFixed(4)}</td>
+                    <td>N/A</td>
+                    <td>${sig}</td>
+                </tr>`;
+            }
+        });
+
+        // Provenance
+        document.getElementById('provenance').innerHTML = `
+            Data Source: results/universal_evaluation/ | 
+            Dataset: Synthetic (CarlAnomaly mock) | 
+            Generated: ${new Date().toLocaleString()}
         `;
     }
-    
-    // Trace
-    if(d.decision_trace) {
-        document.getElementById('trace-list').innerHTML = d.decision_trace.map(t => `<div class="done">${t}</div>`).join('');
-    }
-    
-    document.getElementById('trace-reasoning').innerHTML = (d.explanation || "") + "<br><br>" + (d.reasoning || "");
-    
-    // History
-    historyData.push(d);
-    if(historyData.length > MAX_HIST) historyData.shift();
-    drawHistory();
-}
 
-let ws, reconnectTimer;
-function connect() {
-    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    ws = new WebSocket(`${proto}://${location.host}/ws`);
-    ws.onopen = () => {
-        document.getElementById('live-dot').className = 'live-dot';
-        document.getElementById('live-text').textContent = 'LIVE SIMULATION';
-    };
-    ws.onclose = () => {
-        document.getElementById('live-dot').className = 'live-dot offline';
-        document.getElementById('live-text').textContent = 'OFFLINE';
-        clearTimeout(reconnectTimer);
-        reconnectTimer = setTimeout(connect, 3000);
-    };
-    ws.onmessage = ev => updateDashboard(JSON.parse(ev.data));
-}
-
-window.addEventListener('load', () => {
-    fetch('/api/latest').then(r=>r.json()).then(updateDashboard).catch(()=>{});
-    connect();
-    
-    document.getElementById('scenario-select').addEventListener('change', e => {
-        fetch('/api/set_scenario', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({scenario: e.target.value})
-        });
-    });
-});
-window.addEventListener('resize', drawHistory);
+    // Initialize
+    fetchData();
 </script>
 </body>
 </html>

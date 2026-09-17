@@ -52,7 +52,7 @@ from cognix.core.types import PredictionResult, UncertaintyResult
 from cognix.metrics.evaluation import calculate_ece, accuracy, brier_score, LatencyTracker
 
 # ── Extended metrics ──────────────────────────────────────────────────────────
-from metrics_extended import (
+from experiments.universal_evaluation.metrics_extended import (
     compute_classification_metrics,
     compute_mce,
     compute_calibration_curve,
@@ -65,7 +65,7 @@ from metrics_extended import (
     compute_throughput,
     holm_bonferroni_dict,
 )
-from scenarios_extended import (
+from experiments.universal_evaluation.scenarios_extended import (
     ExtendedDataGenerator,
     NOISE_SEVERITY_LEVELS,
     AGENT_FAILURE_COUNTS,
@@ -205,6 +205,7 @@ def _run_single_sample(
     agent_reliabilities: Dict[str, float],
     cgx_config: CognixConfig,
     use_conformal: bool = True,
+    graph_type: str = "EpistemicGAT",
 ) -> Dict[str, Any]:
     """
     Run the Cognix pipeline for a single sample and return all outputs needed for metrics.
@@ -217,6 +218,7 @@ def _run_single_sample(
     ep_uncs: Dict[str, float] = {}
     ale_uncs: Dict[str, float] = {}
 
+    if torch.cuda.is_available(): torch.cuda.synchronize()
     t_unc = time.perf_counter()
     for aid in agent_order:
         a = agents_by_id[aid]
@@ -224,6 +226,7 @@ def _run_single_sample(
         u = a.estimate_uncertainty(x_i)
         ep_uncs[aid] = float(u.epistemic)
         ale_uncs[aid] = float(u.aleatoric)
+    if torch.cuda.is_available(): torch.cuda.synchronize()
     t_unc_ms = (time.perf_counter() - t_unc) * 1000
 
     # Node features
@@ -235,8 +238,10 @@ def _run_single_sample(
     N = len(agent_order)
     adjacency = (np.ones((N, N)) - np.eye(N)).astype(np.float32)
 
+    if torch.cuda.is_available(): torch.cuda.synchronize()
     t_gat = time.perf_counter()
     g_res = gat.forward(node_features, adjacency, ep_uncs, agent_order)
+    if torch.cuda.is_available(): torch.cuda.synchronize()
     t_gat_ms = (time.perf_counter() - t_gat) * 1000
 
     refined_preds: Dict[str, float] = {}
@@ -246,18 +251,22 @@ def _run_single_sample(
         p_ref = float(np.clip(1.0 / (1.0 + math.exp(-val)), 1e-7, 1 - 1e-7))
         refined_preds[aid] = p_ref
 
+    if torch.cuda.is_available(): torch.cuda.synchronize()
     t_fuse = time.perf_counter()
     f_res = fuser.fuse(predictions=refined_preds,
                        uncertainties=ep_uncs, reliabilities=agent_reliabilities)
     fused_prob = float(np.clip(f_res.probability, 1e-7, 1 - 1e-7))
+    if torch.cuda.is_available(): torch.cuda.synchronize()
     t_fuse_ms = (time.perf_counter() - t_fuse) * 1000
 
     pred_set: List[int] = []
+    if torch.cuda.is_available(): torch.cuda.synchronize()
     t_cal = time.perf_counter()
     if use_conformal and calibrator is not None:
         cal_in = np.array([[1.0 - fused_prob, fused_prob]])
         cp_sets = calibrator.predict(cal_in, alpha=0.05)
         pred_set = cp_sets[0].prediction_set
+    if torch.cuda.is_available(): torch.cuda.synchronize()
     t_cal_ms = (time.perf_counter() - t_cal) * 1000
 
     # Aggregate uncertainties
@@ -281,6 +290,7 @@ def _run_single_sample(
         "agent_epistemics": dict(ep_uncs),
         "agent_preds": dict(refined_preds),
         "attention_matrix": attn_matrix,
+        "comm_bytes": 0.0 if graph_type == "NoGraph" else float(N * (N - 1) * 3 * 4),
         "latency_unc_ms": t_unc_ms,
         "latency_gat_ms": t_gat_ms,
         "latency_fuse_ms": t_fuse_ms,
@@ -394,7 +404,7 @@ def run_evaluation(
     for i in range(len(X_cal)):
         res_cal = _run_single_sample(
             X_cal[i], agents, gat, fuser, None, agent_reliabilities,
-            CognixConfig(), use_conformal=False
+            CognixConfig(), use_conformal=False, graph_type=graph_type
         )
         p = float(np.clip(res_cal["prob"], 1e-7, 1 - 1e-7))
         cal_probs_list.append([1.0 - p, p])
@@ -407,7 +417,7 @@ def run_evaluation(
     # ── Warmup (for latency measurement) ──────────────────────────────────
     for i in range(min(N_WARMUP, len(X_test))):
         _run_single_sample(X_test[i], agents, gat, fuser, calibrator,
-                           agent_reliabilities, CognixConfig(), use_conformal=use_conformal)
+                           agent_reliabilities, CognixConfig(), use_conformal=use_conformal, graph_type=graph_type)
 
     # ── Test loop ─────────────────────────────────────────────────────────
     all_probs:    List[float] = []
@@ -424,11 +434,13 @@ def run_evaluation(
 
     t_throughput_start = time.perf_counter()
     for i in range(len(X_test)):
+        if torch.cuda.is_available(): torch.cuda.synchronize()
         t0 = time.perf_counter()
         r = _run_single_sample(
             X_test[i], agents, gat, fuser, calibrator,
-            agent_reliabilities, CognixConfig(), use_conformal=use_conformal
+            agent_reliabilities, CognixConfig(), use_conformal=use_conformal, graph_type=graph_type
         )
+        if torch.cuda.is_available(): torch.cuda.synchronize()
         latency_total.append((time.perf_counter() - t0) * 1000)
 
         all_probs.append(r["prob"])
@@ -442,6 +454,8 @@ def run_evaluation(
         latency_cal.append(r["latency_cal_ms"])
         if r["attention_matrix"] is not None:
             all_attn_matrices.append(r["attention_matrix"])
+        
+        comm_bytes_per_inf = r.get("comm_bytes", 0.0)
 
     t_throughput_elapsed = time.perf_counter() - t_throughput_start
 
@@ -581,6 +595,14 @@ def run_evaluation(
 
         # Throughput
         "throughput_decisions_per_sec": throughput,
+
+        # Communication
+        "communication": {
+            "status": "theoretical_in_process",
+            "messages": 0 if graph_type == "NoGraph" else num_agents * (num_agents - 1),
+            "bytes_per_inference": comm_bytes_per_inf,
+            "bandwidth_reduction_vs_standardgat": 0.0
+        }
     }
 
     return result
@@ -1288,12 +1310,6 @@ def main(smoke: bool = False):
     )
     with open(RESULTS_DIR / "reliability_log.json", "w") as f:
         json.dump(_serialize(_reliability_log), f, indent=2)
-
-    try:
-        from report_generator import generate_report
-        generate_report()
-    except Exception as e:
-        print(f"Error generating final report: {e}")
 
     elapsed = time.time() - t_total_start
     print(f"\n{'='*70}")

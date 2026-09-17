@@ -136,8 +136,11 @@ def generate_report():
             ["OS", env.get("os", "N/A")],
             ["CPU", env.get("cpu", "N/A")],
             ["System RAM", f"{env.get('system_ram_gb', 'N/A')} GB"],
-            ["GPU", "None (CPU-only build)"],
+            ["GPU", env.get("gpu_name", "None (CPU-only)")],
+            ["GPU Memory", f"{env.get('gpu_memory_gb', 'N/A')} GB"],
             ["CUDA available", str(env.get("cuda_available", False))],
+            ["CUDA version", env.get("cuda_version", "N/A")],
+            ["Compute device", env.get("device", "cpu")],
             ["Python", env.get("python_version", "N/A")],
             ["PyTorch", env.get("torch_version", "N/A")],
             ["NumPy", env.get("numpy_version", "N/A")],
@@ -448,12 +451,22 @@ def generate_report():
 
     # ── 14. Resource Usage ────────────────────────────────────────────────────
     h("14. Resource Usage", 2)
-    p(
-        "- **GPU memory:** N/A — CPU-only build (torch 2.14.0+cpu)\n"
-        "- **GPU utilization:** N/A — no GPU\n"
-        "- **Energy / power:** N/A — no NVML/RAPL telemetry available on this system\n"
-        "  (Would require hardware power-measurement capability to report honestly)"
-    )
+    gpu_name = env.get("gpu_name", "N/A")
+    if gpu_name and gpu_name != "N/A":
+        gpu_mem  = env.get("gpu_memory_gb", "N/A")
+        p(
+            f"- **GPU:** {gpu_name} ({gpu_mem} GB VRAM)\n"
+            "- **GPU memory (peak VRAM allocated):** See scalability section / psutil unavailable for per-run GPU mem\n"
+            "- **Energy / power:** N/A — no NVML/RAPL hardware power telemetry available\n"
+            "  (Would require hardware power-measurement capability to report honestly)"
+        )
+    else:
+        p(
+            "- **GPU memory:** N/A — CPU-only run\n"
+            "- **GPU utilization:** N/A — no GPU\n"
+            "- **Energy / power:** N/A — no NVML/RAPL telemetry available on this system\n"
+            "  (Would require hardware power-measurement capability to report honestly)"
+        )
     # Collect RAM from scalability runs
     scal_summaries = []
     for gt in GRAPH_MODES:

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cognix"
-version = "0.1.0.dev0"
+version = "0.1.0"
 description = "A domain-agnostic, uncertainty-aware multi-agent AI decision framework"
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -43,6 +43,7 @@ explainability = ["shap>=0.43", "lime>=0.2"]
 carla = ["carla>=0.9.15"]
 llm = ["openai>=1.0", "anthropic>=0.20"]
 dashboard = ["fastapi>=0.110", "uvicorn[standard]>=0.28", "websockets>=12.0", "httpx>=0.27"]
+docs = ["mkdocs-material>=9.5", "mkdocstrings[python]>=0.24"]
 dev = [
     "pytest>=7.4",
     "pytest-cov>=4.1",

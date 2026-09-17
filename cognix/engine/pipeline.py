@@ -221,15 +221,22 @@ class CognixPipeline:
                     "adjacency_type": "fully_connected",
                 }
 
+                gat_method = "epistemic_gat"
+                if self.graph is not None and hasattr(self.graph, "use_epistemic_prior") and not self.graph.use_epistemic_prior:
+                    gat_method = "gat"
+
                 gnn_status = ModuleStatus(
-                    executed=True, method="epistemic_gat",
+                    executed=True, method=gat_method,
                     duration_ms=_ms(t), failure_reason=None,
                     inputs_validated=True, outputs_validated=True,
                 )
 
             except Exception as exc:
+                gat_method = "epistemic_gat"
+                if self.graph is not None and hasattr(self.graph, "use_epistemic_prior") and not self.graph.use_epistemic_prior:
+                    gat_method = "gat"
                 gnn_status = ModuleStatus(
-                    executed=False, method="epistemic_gat",
+                    executed=False, method=gat_method,
                     duration_ms=_ms(t), failure_reason=str(exc)
                 )
                 if self.mode == RESEARCH_MODE:
@@ -713,9 +720,10 @@ class CognixPipeline:
             low_unc_thresh = high_unc_thresh * 0.4
             high_conf_thresh = getattr(d, "high_confidence_threshold", 0.7)
 
-        if epistemic > high_unc_thresh or confidence < low_conf_thresh:
+        # confidence is P(Hazard). High P(Hazard) -> HIGH risk. Low P(Hazard) -> LOW risk.
+        if epistemic > high_unc_thresh or confidence > high_conf_thresh:
             return RiskLevel.HIGH
-        if epistemic < low_unc_thresh and confidence > high_conf_thresh:
+        if epistemic < low_unc_thresh and confidence < low_conf_thresh:
             return RiskLevel.LOW
         return RiskLevel.MODERATE
 
@@ -831,12 +839,15 @@ class CognixPipeline:
             return 0.5
         if isinstance(pred, float):
             return float(np.clip(pred, 0.0, 1.0))
+        # FIXED: Extract value (directional probability P(Hazard)) rather than confidence (max(p, 1-p))
+        if hasattr(pred, "value") and getattr(pred, "value") is not None:
+            return float(np.clip(pred.value, 0.0, 1.0))
         if hasattr(pred, "confidence") and getattr(pred, "confidence") is not None:
             return float(np.clip(pred.confidence, 0.0, 1.0))
         if hasattr(pred, "probabilities") and pred.probabilities is not None:
             return float(np.clip(np.max(pred.probabilities), 0.0, 1.0))
         if isinstance(pred, dict):
-            for key in ("confidence", "prob"):
+            for key in ("value", "confidence", "prob"):
                 if key in pred:
                     return float(np.clip(pred[key], 0.0, 1.0))
             if "probabilities" in pred:

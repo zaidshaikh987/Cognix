@@ -1,0 +1,279 @@
+COMMIT_START|7eb6104|AdityaRahane|2026-09-17|Add universal benchmark and evaluation suite
+A	experiments/universal_evaluation/__init__.py
+A	experiments/universal_evaluation/metrics_extended.py
+A	experiments/universal_evaluation/report_generator.py
+A	experiments/universal_evaluation/run_universal_benchmark.py
+A	experiments/universal_evaluation/scenarios_extended.py
+A	experiments/universal_evaluation/smoke_test.py
+
+COMMIT_START|e9b64e1|AdityaRahane|2026-09-16|Make epistemic Shapley explanation-only
+M	cognix/decision/escalation.py
+M	tests/test_mathematics.py
+
+COMMIT_START|7a45852|AdityaRahane|2026-09-16|Fix pipeline escalation engine integration
+M	cognix/engine/pipeline.py
+M	tests/test_mathematics.py
+
+COMMIT_START|b6f86e0|AdityaRahane|2026-09-15|Fix epistemic Shapley coalition semantics
+M	cognix/engine/pipeline.py
+M	tests/test_mathematics.py
+
+COMMIT_START|2757524|AdityaRahane|2026-09-14|Fix epistemic GAT attention prior monotonicity
+M	cognix/graph/epistemic_gat.py
+M	tests/test_mathematics.py
+
+COMMIT_START|bcdc1a9|AdityaRahane|2026-09-14|Fix benchmark reproducibility across seeds
+M	cognix/evaluation/run.py
+
+COMMIT_START|6eacf6f|AdityaRahane|2026-09-14|Fix benchmark prediction and calibration consistency
+M	cognix/engine/pipeline.py
+M	cognix/evaluation/run.py
+
+COMMIT_START|025ddf1|AdityaRahane|2026-09-14|Fix calibration issues and replace mock calibration experiment
+M	cognix/calibration/conformal.py
+M	cognix/uncertainty/heteroscedastic.py
+M	experiments/calibration/run.py
+M	tests/test_new_modules.py
+
+COMMIT_START|37be89c|Zaid Shaikh|2026-09-13|style: final UI polish, text labels, and conformal set precision
+M	dashboard/app.py
+M	dashboard/static/index.html
+
+COMMIT_START|18dddc2|Zaid Shaikh|2026-09-13|fix: repair javascript template literal escaping bug causing blank data
+M	dashboard/static/index.html
+
+COMMIT_START|c97a97c|Zaid Shaikh|2026-09-13|feat: complete UI architectural refactor with Epistemic Agent Graph and Decision Trace
+M	dashboard/app.py
+M	dashboard/static/index.html
+
+COMMIT_START|c6b186c|Zaid Shaikh|2026-09-13|feat: make dashboard completely dynamic with moving average baselines and high-variance anomaly noise
+M	cognix/adapters/carla/dataset.py
+M	dashboard/app.py
+
+COMMIT_START|38c51f1|Zaid Shaikh|2026-09-13|fix: disable browser caching for dashboard index.html so updates propagate
+M	dashboard/app.py
+
+COMMIT_START|770bac6|Zaid Shaikh|2026-09-13|fix: JSON serialization error for PredictionResult in dashboard payload
+M	dashboard/app.py
+
+COMMIT_START|9692217|Zaid Shaikh|2026-09-13|feat: live interactive COGNIX dashboard with real-time DecisionEngine simulation
+M	dashboard/app.py
+M	dashboard/static/index.html
+
+COMMIT_START|58ef18a|Zaid Shaikh|2026-09-13|feat: integrate CarlAnomaly dataset via synthetic statistical replica mode
+A	cognix/adapters/carla/agents.py
+A	cognix/adapters/carla/dataset.py
+A	cognix/adapters/carla/features.py
+A	cognix/evaluation/carla_eval.py
+A	configs/benchmark/carla_anomaly.yaml
+A	tests/test_carla_adapter.py
+
+COMMIT_START|63440ec|Zaid Shaikh|2026-09-13|fix: 3 mathematical bugs (ECE formula, NoGraph double-sigmoid, conformal augmented quantile) + ground-truth test suite 18/18
+M	cognix/calibration/conformal.py
+M	cognix/graph/no_graph.py
+A	tests/test_ground_truth.py
+
+COMMIT_START|a6e88c2|Zaid Shaikh|2026-09-13|fix: correct ECE formula (fraction-of-positives not round accuracy) and fix NoGraph double-sigmoid
+M	cognix/graph/no_graph.py
+M	cognix/metrics/evaluation.py
+
+COMMIT_START|41e8fda|Zaid Shaikh|2026-09-09|fix: precompute UQ to solve massive GAT training latency, add LatencyTracker, and add stats module
+M	cognix/agents/registry.py
+M	cognix/evaluation/run.py
+A	cognix/evaluation/statistics.py
+M	cognix/graph/epistemic_gat.py
+A	configs/benchmark/test_1_seed.yaml
+
+COMMIT_START|91f7fe7|Zaid Shaikh|2026-09-09|docs: strictly align README with Phase B research guidelines and architecture
+M	README.md
+
+COMMIT_START|bee46cb|Zaid Shaikh|2026-09-09|feat: complete phase a frameworkization and begin phase b benchmark infra
+M	cognix/__init__.py
+M	cognix/agents/__init__.py
+M	cognix/agents/adapters.py
+M	cognix/agents/base.py
+M	cognix/agents/registry.py
+R100	cognix/explainability/__init__.py	cognix/attribution/__init__.py
+R100	cognix/explainability/causal.py	cognix/attribution/causal.py
+R078	cognix/explainability/epistemic_shapley.py	cognix/attribution/epistemic_shapley.py
+R100	cognix/explainability/lime_adapter.py	cognix/attribution/lime_adapter.py
+R100	cognix/explainability/shap_adapter.py	cognix/attribution/shap_adapter.py
+M	cognix/belief/__init__.py
+M	cognix/belief/fusion.py
+M	cognix/calibration/conformal.py
+A	cognix/communication/local.py
+A	cognix/communication/websocket.py
+A	cognix/core/__init__.py
+A	cognix/core/interfaces.py
+A	cognix/core/types.py
+M	cognix/engine/decision_engine.py
+M	cognix/engine/pipeline.py
+M	cognix/engine/provenance.py
+A	cognix/evaluation/__init__.py
+A	cognix/evaluation/benchmark.py
+A	cognix/evaluation/reporting.py
+A	cognix/evaluation/run.py
+A	cognix/evaluation/runner.py
+A	cognix/evaluation/scenarios.py
+M	cognix/graph/epistemic_gat.py
+A	cognix/graph/no_graph.py
+A	cognix/graph/standard_gat.py
+M	cognix/metrics/evaluation.py
+M	cognix/uncertainty/__init__.py
+M	cognix/uncertainty/deep_ensemble.py
+M	cognix/uncertainty/mc_dropout.py
+A	configs/benchmark/gat_ablation.yaml
+A	docs/PHASE_B_BASELINE_AUDIT.md
+A	docs/STATISTICAL_METHODOLOGY.md
+M	examples/rq_synthetic_001.py
+A	tests/test_benchmarks.py
+A	tests/test_interfaces.py
+M	tests/test_mathematics.py
+
+COMMIT_START|9c58abb|Zaid Shaikh|2026-09-08|Initial open-source release with detailed README and Actions
+A	.github/workflows/lint.yml
+A	.github/workflows/python-app.yml
+A	.github/workflows/release.yml
+A	.github/workflows/tests.yml
+A	.gitignore
+A	CHANGELOG.md
+A	CITATION.cff
+A	CODE_OF_CONDUCT.md
+A	CONTRIBUTING.md
+A	LICENSE
+A	README.md
+A	cognix/__init__.py
+A	cognix/agents/__init__.py
+A	cognix/agents/adapters.py
+A	cognix/agents/base.py
+A	cognix/agents/registry.py
+A	cognix/belief/__init__.py
+A	cognix/belief/base.py
+A	cognix/belief/bayesian.py
+A	cognix/belief/bbn.py
+A	cognix/belief/fusion.py
+A	cognix/belief/loopy_bp.py
+A	cognix/belief/propagation.py
+A	cognix/calibration/__init__.py
+A	cognix/calibration/conformal.py
+A	cognix/calibration/drift.py
+A	cognix/calibration/metrics.py
+A	cognix/calibration/temperature.py
+A	cognix/cli.py
+A	cognix/communication/__init__.py
+A	cognix/communication/base.py
+A	cognix/communication/information_gain.py
+A	cognix/communication/top_k.py
+A	cognix/compliance/eu_ai_act.py
+A	cognix/config/__init__.py
+A	cognix/config/schema.py
+A	cognix/decision/__init__.py
+A	cognix/decision/abstention.py
+A	cognix/decision/escalation.py
+A	cognix/decision/risk.py
+A	cognix/engine/__init__.py
+A	cognix/engine/decision_engine.py
+A	cognix/engine/pipeline.py
+A	cognix/engine/provenance.py
+A	cognix/engine/result.py
+A	cognix/engine/utils.py
+A	cognix/explainability/__init__.py
+A	cognix/explainability/causal.py
+A	cognix/explainability/epistemic_shapley.py
+A	cognix/explainability/lime_adapter.py
+A	cognix/explainability/shap_adapter.py
+A	cognix/graph/__init__.py
+A	cognix/graph/dynamic.py
+A	cognix/graph/epistemic_gat.py
+A	cognix/graph/gat.py
+A	cognix/graph/gcn.py
+A	cognix/graph/routing.py
+A	cognix/marl/__init__.py
+A	cognix/marl/council.py
+A	cognix/marl/environment.py
+A	cognix/marl/maddpg.py
+A	cognix/marl/qmix.py
+A	cognix/metrics/__init__.py
+A	cognix/metrics/calibration.py
+A	cognix/metrics/communication.py
+A	cognix/metrics/decision.py
+A	cognix/metrics/evaluation.py
+A	cognix/metrics/uncertainty.py
+A	cognix/models/__init__.py
+A	cognix/models/bayesian.py
+A	cognix/models/evidential.py
+A	cognix/uncertainty/__init__.py
+A	cognix/uncertainty/base.py
+A	cognix/uncertainty/decomposition.py
+A	cognix/uncertainty/deep_ensemble.py
+A	cognix/uncertainty/gmm.py
+A	cognix/uncertainty/heteroscedastic.py
+A	cognix/uncertainty/kalman.py
+A	cognix/uncertainty/mc_dropout.py
+A	cognix/uncertainty/ood.py
+A	cognix/utils/__init__.py
+A	cognix/utils/logging.py
+A	cognix/utils/math_utils.py
+A	cognix/utils/seeding.py
+A	cognix/utils/timing.py
+A	configs/default.yaml
+A	dashboard/__init__.py
+A	dashboard/app.py
+A	dashboard/static/index.html
+A	dashboard/static/style.css
+A	dashboard/test_live.py
+A	docs/algorithms/uncertainty.md
+A	docs/architecture/overview.md
+A	docs/getting_started/quickstart.md
+A	docs/research/ABLATION_PLAN.md
+A	docs/research/COGNIX_FINAL_STATUS.md
+A	docs/research/DATA_PROVENANCE.md
+A	docs/research/DATA_SOURCES.md
+A	docs/research/DOMAIN_GENERALIZATION.md
+A	docs/research/DUMMY_DATA_AUDIT.md
+A	docs/research/EXPERIMENT_PROTOCOL.md
+A	docs/research/EXPERIMENT_RQ0.md
+A	docs/research/IMPLEMENTATION_AUDIT.md
+A	docs/research/METRIC_PROVENANCE.md
+A	docs/research/REPRODUCIBILITY.md
+A	docs/research/RESEARCH_DASHBOARD.md
+A	docs/research/RQ_SYNTHETIC_001_REPORT.md
+A	docs/research/RUNTIME_DATA_FLOW.md
+A	docs/research/STUB_AND_PLACEHOLDER_AUDIT.md
+A	docs/research/novelty_and_prior_art.md
+A	examples/autonomous_vehicle/av_scenario.py
+A	examples/basic/hello_cognix.py
+A	examples/classification/mnist_demo.py
+A	examples/generate_plots.py
+A	examples/generic_decision.py
+A	examples/multi_agent/disagreement_scenario.py
+A	examples/rq_synthetic_001.py
+A	experiments/__init__.py
+A	experiments/ablations/run_ablation.py
+A	experiments/baselines/run_all_baselines.py
+A	experiments/calibration/run.py
+A	experiments/communication/run.py
+A	experiments/uncertainty/run.py
+A	github_setup.py
+A	pyproject.toml
+A	robotics/toy_car/__init__.py
+A	robotics/toy_car/cognix_car.py
+A	robotics/toy_car/hardware.py
+A	simulation/carla/__init__.py
+A	simulation/carla/adapter.py
+A	simulation/synthetic/__init__.py
+A	simulation/synthetic/scenarios.py
+A	stubs.json
+A	tests/__init__.py
+A	tests/integration/__init__.py
+A	tests/integration/test_pipeline.py
+A	tests/regression/__init__.py
+A	tests/regression/test_regression.py
+A	tests/test_mathematics.py
+A	tests/test_new_modules.py
+A	tests/unit/__init__.py
+A	tests/unit/test_agents.py
+A	tests/unit/test_belief.py
+A	tests/unit/test_calibration.py
+A	tests/unit/test_decision.py
+A	tests/unit/test_uncertainty.py

@@ -317,7 +317,8 @@ class EpistemicGAT(nn.Module, GraphRefinement):
                 # p_collective = mean over agents
                 p_agents = torch.sigmoid(H[:, 0])          # (N,)
                 p_collective = p_agents.mean().unsqueeze(0) # (1,)
-                target = torch.tensor([y_i], dtype=torch.float32)
+                target = torch.tensor([y_i], dtype=torch.float32,
+                                       device=next(self.parameters()).device)
 
                 loss = criterion(p_collective, target)
                 loss.backward()

@@ -60,7 +60,13 @@ class GATNetwork:
                 self.layers.append(GATLayer(hidden_dim, hidden_dim))
             self.layers.append(GATLayer(hidden_dim, output_dim))
 
-    def forward(self, node_features: np.ndarray, adjacency_matrix: np.ndarray) -> tuple[np.ndarray, list[np.ndarray]]:
+    def forward(
+        self, 
+        node_features: np.ndarray, 
+        adjacency_matrix: np.ndarray, 
+        epistemic_uncertainties: dict = None, 
+        agent_order: list = None
+    ) -> tuple[np.ndarray, list[np.ndarray]]:
         H = node_features
         attention_weights_list = []
         for layer in self.layers:

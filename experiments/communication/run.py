@@ -1,28 +1,7 @@
 """
-Usage: python -m experiments.communication.run
-
-Experiment: Compare all-to-all vs top-K vs information-gain routing.
-Metrics: message count, bandwidth, decision quality, latency.
+Communication measurement has been removed from this standalone script as it contained mock data.
+Actual theoretical communication bandwidth is now tracked centrally inside `run_universal_benchmark.py`.
 """
-
-import json
-import os
-
-def run_experiment():
-    print("Starting Communication Experiment...")
-    results = {
-        "all_to_all": {"messages": 1000, "bandwidth_mb": 5.0, "latency_ms": 120, "accuracy": 0.92},
-        "top_k": {"messages": 300, "bandwidth_mb": 1.5, "latency_ms": 45, "accuracy": 0.91},
-        "info_gain": {"messages": 150, "bandwidth_mb": 0.8, "latency_ms": 30, "accuracy": 0.915}
-    }
-    
-    os.makedirs("results/communication", exist_ok=True)
-    with open("results/communication/metrics.json", "w") as f:
-        json.dump(results, f, indent=4)
-        
-    print("Communication Experiment complete.")
-    for k, v in results.items():
-        print(f"{k}: latency={v['latency_ms']}ms, msgs={v['messages']}")
-
 if __name__ == "__main__":
-    run_experiment()
+    print("Communication bandwidth is not directly measurable in the current in-process prototype.")
+    print("Theoretical estimates (e.g. 144 bytes/inference for N=4) are now integrated into the universal benchmark results.")

@@ -321,18 +321,22 @@ check("LatencyTracker-6.3: empty stage returns zeros, no crash",
 # ══════════════════════════════════════════════════════════════════════════════
 # SUMMARY
 # ══════════════════════════════════════════════════════════════════════════════
-print("\n" + "═"*70)
-total = len(results)
-passed = sum(1 for _, ok in results if ok)
-failed = total - passed
+def run_tests():
+    print("\n" + "═"*70)
+    total = len(results)
+    passed = sum(1 for _, ok in results if ok)
+    failed = total - passed
 
-print(f"RESULTS: {passed}/{total} passed")
-if failed > 0:
-    print(f"\nFAILED TESTS ({failed}):")
-    for name, ok in results:
-        if not ok:
-            print(f"  ✗ {name}")
-    sys.exit(1)
-else:
-    print("\n✓ ALL TESTS PASSED — mathematical primitives are correct.")
-    sys.exit(0)
+    print(f"RESULTS: {passed}/{total} passed")
+    if failed > 0:
+        print(f"\nFAILED TESTS ({failed}):")
+        for name, ok in results:
+            if not ok:
+                print(f"  ✗ {name}")
+        sys.exit(1)
+    else:
+        print("\n✓ ALL TESTS PASSED — mathematical primitives are correct.")
+        sys.exit(0)
+
+if __name__ == '__main__':
+    run_tests()

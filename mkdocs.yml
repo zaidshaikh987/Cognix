@@ -1,0 +1,62 @@
+site_name: COGNIX
+site_description: A domain-agnostic, uncertainty-aware multi-agent AI decision framework
+repo_url: https://github.com/cognix-framework/cognix
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - toc.integrate
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.snippets
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [.]
+          options:
+            show_source: false
+            show_root_heading: true
+
+nav:
+  - Introduction: index.md
+  - Getting Started: quickstart.md
+  - Concepts & Architecture: concepts.md
+  - User Guide:
+    - Uncertainty: uncertainty.md
+    - Graph Reasoning: graph-reasoning.md
+    - Calibration: calibration.md
+    - Risk & Decisions: decisions.md
+  - Benchmarks: benchmarking.md
+  - Dashboard: dashboard.md
+  - API Reference: api.md
