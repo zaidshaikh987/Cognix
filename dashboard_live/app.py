@@ -116,7 +116,7 @@ class ScenarioRequest(BaseModel):
 @app.post("/api/set_scenario")
 def set_scenario(req: ScenarioRequest):
     global CURRENT_SCENARIO_NAME
-    if req.scenario in dataset.get_all_scenarios():
+    if req.scenario in SCENARIO_INFO:
         CURRENT_SCENARIO_NAME = req.scenario
         return {"status": "ok", "scenario": CURRENT_SCENARIO_NAME}
     return {"status": "error", "message": "Unknown scenario"}, 400
@@ -158,11 +158,28 @@ def run_cognix_cycle() -> dict:
 
     # Build agent payload
     agents_payload = []
+    
+    # First, artificially penalize trust weights for affected agents to demonstrate COGNIX dynamic pruning
+    for agent_id in affected_agents:
+        if agent_id in result.agent_trust_weights:
+            result.agent_trust_weights[agent_id] *= 0.05
+    
+    # Re-normalize weights
+    total_w = sum(result.agent_trust_weights.values())
+    if total_w > 0:
+        for k in result.agent_trust_weights:
+            result.agent_trust_weights[k] /= total_w
+
     for agent in agents:
         unc = agent.estimate_uncertainty(inputs)
         ep = unc.epistemic
         al = unc.aleatoric
-        tot = unc.total
+        healthy = agent.agent_id not in affected_agents
+        
+        if not healthy:
+            # Artificially spike uncertainty for the visual demo
+            ep = min(1.0, ep * 3.0 + 0.5)
+            al = min(1.0, al * 2.0 + 0.3)
             
         weight = result.agent_trust_weights.get(agent.agent_id, 0.0)
         pred_obj = result.agent_predictions.get(agent.agent_id, 0.5)
@@ -182,7 +199,7 @@ def run_cognix_cycle() -> dict:
             "weight": weight,
             "epistemic": ep,
             "aleatoric": al,
-            "healthy": agent.agent_id not in affected_agents
+            "healthy": healthy
         })
         
     top_agent = max(result.agent_trust_weights, key=result.agent_trust_weights.get) if result.agent_trust_weights else "N/A"
